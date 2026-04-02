@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.ordering.mapper.ProductInfoMapper">
+
+    <!-- 通用结果映射 -->
+    <resultMap id="BaseResultMap" type="com.campus.ordering.entity.ProductInfo">
+        <id column="product_id" property="productId"/>
+        <result column="shop_id" property="shopId"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="product_name" property="productName"/>
+        <result column="product_desc" property="productDesc"/>
+        <result column="product_image" property="productImage"/>
+        <result column="price" property="price"/>
+        <result column="original_price" property="originalPrice"/>
+        <result column="stock" property="stock"/>
+        <result column="sales" property="sales"/>
+        <result column="product_status" property="productStatus"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 通用查询列 -->
+    <sql id="Base_Column_List">
+        product_id, shop_id, category_id, product_name, product_desc, product_image,
+        price, original_price, stock, sales, product_status, is_deleted, create_time, update_time
+    </sql>
+
+    <!-- 查询店铺商品列表 -->
+    <select id="selectByShopId" parameterType="long" resultMap="BaseResultMap">
+        SELECT * FROM product_info 
+        WHERE shop_id = #{shopId} 
+        AND product_status = 1 
+        AND is_deleted = 0
+        ORDER BY create_time DESC
+    </select>
+</mapper>

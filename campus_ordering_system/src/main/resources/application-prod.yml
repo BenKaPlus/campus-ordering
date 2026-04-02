@@ -1,0 +1,97 @@
+# ==================== 生产环境服务器配置 ====================
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  tomcat:
+    threads:
+      max: 500 # 最大线程数（高并发优化）
+      min-spare: 50 # 最小空闲线程数
+    accept-count: 200 # 等待队列长度
+    max-connections: 10000 # 最大连接数
+
+# ==================== 生产环境数据源配置 ====================
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://prod-mysql-host:3306/campus_ordering_system?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=GMT%2B8&useSSL=true&requireSSL=true
+    username: prod_db_user # 生产环境数据库账号
+    password: ${DB_PASSWORD} # 生产环境数据库密码（从环境变量读取，更安全）
+    druid:
+      initial-size: 10
+      min-idle: 10
+      max-active: 50
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      # 生产环境关闭Druid监控或限制IP访问
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-username: ${DRUID_USERNAME}
+        login-password: ${DRUID_PASSWORD}
+        allow: 127.0.0.1 # 仅允许本地访问
+      web-stat-filter:
+        enabled: true
+        url-pattern: /*
+        exclusions: "*.js,*.gif,*.jpg,*.png,*.css,*.ico,/druid/*"
+
+  # ==================== 生产环境Redis配置（建议使用哨兵或集群） ====================
+  redis:
+    host: prod-redis-host
+    port: 6379
+    password: ${REDIS_PASSWORD} # 从环境变量读取
+    database: 0
+    timeout: 10000ms
+    lettuce:
+      pool:
+        max-active: 100
+        max-idle: 50
+        min-idle: 20
+        max-wait: 5000ms
+
+# ==================== 生产环境MyBatis-Plus配置（关闭SQL日志） ====================
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl # 关闭SQL日志
+
+# ==================== 生产环境JWT配置（强密钥） ====================
+jwt:
+  secret: ${JWT_SECRET} # 从环境变量读取强密钥
+  expiration: 7200
+  refresh-expiration: 604800
+
+# ==================== 生产环境支付配置（正式环境） ====================
+wx:
+  pay:
+    app-id: ${WX_PAY_APP_ID}
+    mch-id: ${WX_PAY_MCH_ID}
+    api-v3-key: ${WX_PAY_API_V3_KEY}
+    private-key-path: /data/cert/wxpay/apiclient_key.pem # 生产环境证书放服务器安全路径
+    merchant-serial-number: ${WX_PAY_SERIAL_NUMBER}
+    notify-url: https://your-domain.com/api/common/pay/callback/wx
+    refund-notify-url: https://your-domain.com/api/common/refund/callback/wx
+
+ali:
+  pay:
+    app-id: ${ALI_PAY_APP_ID}
+    private-key: ${ALI_PAY_PRIVATE_KEY}
+    public-key: ${ALI_PAY_PUBLIC_KEY}
+    gateway-url: https://openapi.alipay.com/gateway.do
+    notify-url: https://your-domain.com/api/common/pay/callback/ali
+    refund-notify-url: https://your-domain.com/api/common/refund/callback/ali
+    sign-type: RSA2
+    charset: utf-8
+    format: json
+
+# ==================== 生产环境日志配置（只输出warn及以上） ====================
+logging:
+  level:
+    root: warn
+    com.campus.ordering: info
+    org.springframework.security: warn

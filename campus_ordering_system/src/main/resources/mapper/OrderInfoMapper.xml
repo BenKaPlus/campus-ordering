@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.ordering.mapper.OrderInfoMapper">
+
+    <!-- 通用结果映射 -->
+    <resultMap id="BaseResultMap" type="com.campus.ordering.entity.OrderInfo">
+        <id column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="user_id" property="userId"/>
+        <result column="shop_id" property="shopId"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="product_amount" property="productAmount"/>
+        <result column="delivery_fee" property="deliveryFee"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="pay_amount" property="payAmount"/>
+        <result column="order_status" property="orderStatus"/>
+        <result column="pay_type" property="payType"/>
+        <result column="pay_status" property="payStatus"/>
+        <result column="pay_time" property="payTime"/>
+        <result column="accept_time" property="acceptTime"/>
+        <result column="delivery_time" property="deliveryTime"/>
+        <result column="finish_time" property="finishTime"/>
+        <result column="cancel_time" property="cancelTime"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_phone" property="receiverPhone"/>
+        <result column="receiver_address" property="receiverAddress"/>
+        <result column="order_remark" property="orderRemark"/>
+        <result column="cancel_reason" property="cancelReason"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 通用查询列 -->
+    <sql id="Base_Column_List">
+        order_id, order_no, user_id, shop_id, total_amount, product_amount, delivery_fee,
+        discount_amount, pay_amount, order_status, pay_type, pay_status, pay_time, accept_time,
+        delivery_time, finish_time, cancel_time, expire_time, receiver_name, receiver_phone,
+        receiver_address, order_remark, cancel_reason, is_deleted, create_time, update_time
+    </sql>
+
+    <!-- 查询订单详情（关联订单项） -->
+    <select id="selectOrderWithItems" parameterType="string" resultMap="BaseResultMap">
+        SELECT * FROM order_info WHERE order_no = #{orderNo} AND is_deleted = 0
+    </select>
+
+    <!-- AdminOrderVO 结果映射 -->
+    <resultMap id="AdminOrderVOMap" type="com.campus.ordering.vo.AdminOrderVO">
+        <id column="order_id" property="orderId"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="user_id" property="userId"/>
+        <result column="shop_id" property="shopId"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_phone" property="receiverPhone"/>
+        <result column="receiver_address" property="receiverAddress"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="pay_amount" property="payAmount"/>
+        <result column="order_status" property="orderStatus"/>
+        <result column="pay_status" property="payStatus"/>
+        <result column="order_remark" property="orderRemark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="user_no" property="userNo"/>
+        <result column="user_name" property="userName"/>
+        <result column="user_phone" property="userPhone"/>
+        <result column="shop_name" property="shopName"/>
+    </resultMap>
+
+    <!-- 管理员查询订单列表（关联用户和店铺信息） -->
+    <select id="selectAdminOrderPage" resultMap="AdminOrderVOMap">
+        SELECT 
+            o.order_id, o.order_no, o.user_id, o.shop_id,
+            o.receiver_name, o.receiver_phone, o.receiver_address,
+            o.total_amount, o.pay_amount, o.order_status, o.pay_status,
+            o.order_remark, o.create_time,
+            u.user_no, u.user_name, u.phone as user_phone,
+            s.shop_name
+        FROM order_info o
+        LEFT JOIN sys_user u ON o.user_id = u.user_id AND u.is_deleted = 0
+        LEFT JOIN shop_info s ON o.shop_id = s.shop_id AND s.is_deleted = 0
+        WHERE o.is_deleted = 0
+        <if test="status != null">
+            AND o.order_status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                o.order_no LIKE CONCAT('%', #{keyword}, '%')
+                OR u.user_no LIKE CONCAT('%', #{keyword}, '%')
+                OR u.user_name LIKE CONCAT('%', #{keyword}, '%')
+                OR s.shop_name LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY o.create_time DESC
+    </select>
+</mapper>
