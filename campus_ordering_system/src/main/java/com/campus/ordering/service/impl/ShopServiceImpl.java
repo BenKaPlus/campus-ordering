@@ -2,6 +2,7 @@ package com.campus.ordering.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campus.ordering.common.CacheConstants;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.entity.ShopCategory;
 import com.campus.ordering.entity.ShopInfo;
@@ -11,6 +12,7 @@ import com.campus.ordering.mapper.ShopCategoryMapper;
 import com.campus.ordering.mapper.ShopInfoMapper;
 import com.campus.ordering.mapper.SysUserMapper;
 import com.campus.ordering.service.ShopService;
+import com.campus.ordering.utils.RedisCacheUtil;
 import com.campus.ordering.vo.AdminShopVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,33 +36,50 @@ public class ShopServiceImpl implements ShopService {
     @Resource
     private SysUserMapper sysUserMapper;
 
+    @Resource
+    private RedisCacheUtil redisCacheUtil;
+
     @Override
     public List<ShopCategory> getCategoryList() {
+        List<ShopCategory> cachedList = redisCacheUtil.get(CacheConstants.SHOP_CATEGORY_LIST, new com.fasterxml.jackson.core.type.TypeReference<List<ShopCategory>>() {});
+        if (cachedList != null) {
+            return cachedList;
+        }
         LambdaQueryWrapper<ShopCategory> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ShopCategory::getIsDeleted, 0);
         wrapper.orderByAsc(ShopCategory::getSort);
-        return shopCategoryMapper.selectList(wrapper);
+        List<ShopCategory> list = shopCategoryMapper.selectList(wrapper);
+        redisCacheUtil.set(CacheConstants.SHOP_CATEGORY_LIST, list, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        return list;
     }
 
     @Override
     public Page<ShopInfo> getShopList(Long categoryId, String keyword, Integer page, Integer size) {
+        String cacheKey = CacheConstants.SHOP_LIST + categoryId + ":" + keyword + ":" + page + ":" + size;
+        Page<ShopInfo> cachedPage = redisCacheUtil.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<Page<ShopInfo>>() {});
+        if (cachedPage != null) {
+            return cachedPage;
+        }
+
         Page<ShopInfo> pageInfo = new Page<>(page, size);
-        
+
         LambdaQueryWrapper<ShopInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ShopInfo::getIsDeleted, 0);
         wrapper.eq(ShopInfo::getShopStatus, 1);
-        
+
         if (categoryId != null) {
             wrapper.eq(ShopInfo::getShopCategoryId, categoryId);
         }
-        
+
         if (keyword != null && !keyword.trim().isEmpty()) {
             wrapper.and(w -> w.like(ShopInfo::getShopName, keyword)
                            .or()
                            .like(ShopInfo::getShopDesc, keyword));
         }
-        
-        return shopInfoMapper.selectPage(pageInfo, wrapper);
+
+        Page<ShopInfo> result = shopInfoMapper.selectPage(pageInfo, wrapper);
+        redisCacheUtil.set(cacheKey, result, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        return result;
     }
 
     @Override
@@ -80,6 +100,8 @@ public class ShopServiceImpl implements ShopService {
         shop.setShopStatus(status);
         shop.setUpdateTime(LocalDateTime.now());
         shopInfoMapper.updateById(shop);
+        redisCacheUtil.delete(CacheConstants.SHOP_DETAIL + shop.getShopId());
+        redisCacheUtil.deleteByPattern(CacheConstants.SHOP_LIST + "*");
     }
 
     @Override
@@ -101,11 +123,22 @@ public class ShopServiceImpl implements ShopService {
         existing.setMinOrderAmount(shop.getMinOrderAmount());
         existing.setUpdateTime(LocalDateTime.now());
         shopInfoMapper.updateById(existing);
+        redisCacheUtil.delete(CacheConstants.SHOP_DETAIL + existing.getShopId());
+        redisCacheUtil.deleteByPattern(CacheConstants.SHOP_LIST + "*");
     }
 
     @Override
     public ShopInfo getShopDetail(Long shopId) {
-        return shopInfoMapper.selectById(shopId);
+        String cacheKey = CacheConstants.SHOP_DETAIL + shopId;
+        ShopInfo cachedShop = redisCacheUtil.get(cacheKey, ShopInfo.class);
+        if (cachedShop != null) {
+            return cachedShop;
+        }
+        ShopInfo shop = shopInfoMapper.selectById(shopId);
+        if (shop != null) {
+            redisCacheUtil.set(cacheKey, shop, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        }
+        return shop;
     }
 
     @Override
@@ -185,6 +218,8 @@ public class ShopServiceImpl implements ShopService {
         }
         shop.setUpdateTime(LocalDateTime.now());
         shopInfoMapper.updateById(shop);
+        redisCacheUtil.delete(CacheConstants.SHOP_DETAIL + shopId);
+        redisCacheUtil.deleteByPattern(CacheConstants.SHOP_LIST + "*");
     }
 
     @Override
@@ -197,6 +232,8 @@ public class ShopServiceImpl implements ShopService {
         shop.setShopStatus(status);
         shop.setUpdateTime(LocalDateTime.now());
         shopInfoMapper.updateById(shop);
+        redisCacheUtil.delete(CacheConstants.SHOP_DETAIL + shopId);
+        redisCacheUtil.deleteByPattern(CacheConstants.SHOP_LIST + "*");
     }
 
     @Override
@@ -209,14 +246,16 @@ public class ShopServiceImpl implements ShopService {
         if (existShop == null) {
             throw new BusinessException(ResultCode.ERROR, "店铺不存在");
         }
-        
+
         existShop.setShopName(shop.getShopName());
         existShop.setContactPhone(shop.getContactPhone());
         existShop.setShopDesc(shop.getShopDesc());
         existShop.setDeliveryFee(shop.getDeliveryFee());
         existShop.setMinOrderAmount(shop.getMinOrderAmount());
         existShop.setUpdateTime(LocalDateTime.now());
-        
+
         shopInfoMapper.updateById(existShop);
+        redisCacheUtil.delete(CacheConstants.SHOP_DETAIL + shop.getShopId());
+        redisCacheUtil.deleteByPattern(CacheConstants.SHOP_LIST + "*");
     }
 }

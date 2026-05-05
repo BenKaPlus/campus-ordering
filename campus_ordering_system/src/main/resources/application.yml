@@ -38,8 +38,18 @@ system:
   order:
     expire-minutes: 30 # 订单支付过期时间（分钟）
   file:
-    upload-path: /data/campus-ordering/upload # 文件上传路径
+    upload-path: D:\\data\\campus-ordering\\upload # 文件上传路径
     access-url: http://localhost:8080/api/file # 文件访问URL前缀
+
+# ==================== 阿里云OSS配置 ====================
+aliyun:
+  oss:
+    endpoint: https://oss-cn-beijing.aliyuncs.com
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
+    bucket-name: firstaliyun-twk
+    region: cn-beijing
+    base-url: https://firstaliyun-twk.oss-cn-beijing.aliyuncs.com
 
 # ==================== 日志配置 ====================
 logging:

@@ -3,6 +3,7 @@ package com.campus.ordering.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campus.ordering.common.CacheConstants;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.entity.ProductCategory;
 import com.campus.ordering.entity.ShopInfo;
@@ -12,6 +13,7 @@ import com.campus.ordering.mapper.ProductCategoryMapper;
 import com.campus.ordering.mapper.ShopInfoMapper;
 import com.campus.ordering.mapper.ProductInfoMapper;
 import com.campus.ordering.service.ProductService;
+import com.campus.ordering.utils.RedisCacheUtil;
 import com.campus.ordering.vo.AdminProductVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,6 +37,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Resource
     private ProductCategoryMapper productCategoryMapper;
+
+    @Resource
+    private RedisCacheUtil redisCacheUtil;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -49,11 +55,16 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product.setProductStatus(1);
-        product.setSales(0);
+        product.setMonthlySales(0);
+        product.setIsHot(0);
+        product.setIsRecommend(0);
+        product.setSort(0);
         product.setIsDeleted(0);
         product.setCreateTime(LocalDateTime.now());
         product.setUpdateTime(LocalDateTime.now());
         productInfoMapper.insert(product);
+        redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + product.getShopId() + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
     }
 
     @Override
@@ -75,18 +86,34 @@ public class ProductServiceImpl implements ProductService {
         product.setProductStatus(status);
         product.setUpdateTime(LocalDateTime.now());
         productInfoMapper.updateById(product);
+        redisCacheUtil.delete(CacheConstants.PRODUCT_DETAIL + productId);
+        redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + product.getShopId() + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
     }
 
     @Override
     public List<ProductCategory> getCategoryList(Long shopId) {
-        return productCategoryMapper.selectList(new LambdaQueryWrapper<ProductCategory>()
+        String cacheKey = CacheConstants.PRODUCT_CATEGORY_LIST + shopId;
+        List<ProductCategory> cachedList = redisCacheUtil.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<List<ProductCategory>>() {});
+        if (cachedList != null) {
+            return cachedList;
+        }
+        List<ProductCategory> list = productCategoryMapper.selectList(new LambdaQueryWrapper<ProductCategory>()
                 .eq(ProductCategory::getShopId, shopId)
                 .eq(ProductCategory::getIsDeleted, 0)
                 .orderByAsc(ProductCategory::getSort));
+        redisCacheUtil.set(cacheKey, list, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        return list;
     }
 
     @Override
     public IPage<ProductInfo> getProductList(Long shopId, Long categoryId, Integer page, Integer size) {
+        String cacheKey = CacheConstants.PRODUCT_LIST + shopId + ":" + categoryId + ":" + page + ":" + size;
+        IPage<ProductInfo> cachedPage = redisCacheUtil.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<Page<ProductInfo>>() {});
+        if (cachedPage != null) {
+            return cachedPage;
+        }
+
         Page<ProductInfo> productPage = new Page<>(page, size);
         LambdaQueryWrapper<ProductInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProductInfo::getShopId, shopId)
@@ -95,26 +122,45 @@ public class ProductServiceImpl implements ProductService {
                 .eq(ProductInfo::getProductStatus, 1)
                 .orderByDesc(ProductInfo::getSort)
                 .orderByDesc(ProductInfo::getCreateTime);
-        return productInfoMapper.selectPage(productPage, wrapper);
+        IPage<ProductInfo> result = productInfoMapper.selectPage(productPage, wrapper);
+        redisCacheUtil.set(cacheKey, result, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        return result;
     }
 
     @Override
     public ProductInfo getProductDetail(Long productId) {
-        return productInfoMapper.selectById(productId);
+        String cacheKey = CacheConstants.PRODUCT_DETAIL + productId;
+        ProductInfo cachedProduct = redisCacheUtil.get(cacheKey, ProductInfo.class);
+        if (cachedProduct != null) {
+            return cachedProduct;
+        }
+        ProductInfo product = productInfoMapper.selectById(productId);
+        if (product != null) {
+            redisCacheUtil.set(cacheKey, product, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        }
+        return product;
     }
 
     @Override
     public IPage<ProductInfo> searchProduct(String keyword, Long shopId, Integer page, Integer size) {
+        String cacheKey = CacheConstants.SEARCH_PRODUCT + keyword + ":" + shopId + ":" + page + ":" + size;
+        IPage<ProductInfo> cachedPage = redisCacheUtil.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<Page<ProductInfo>>() {});
+        if (cachedPage != null) {
+            return cachedPage;
+        }
+
         Page<ProductInfo> productPage = new Page<>(page, size);
         LambdaQueryWrapper<ProductInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProductInfo::getShopId, shopId)
                 .eq(ProductInfo::getIsDeleted, 0)
                 .eq(ProductInfo::getProductStatus, 1)
-                .and(StringUtils.hasText(keyword), w -> 
+                .and(StringUtils.hasText(keyword), w ->
                     w.like(ProductInfo::getProductName, keyword)
                      .or()
                      .like(ProductInfo::getProductDesc, keyword));
-        return productInfoMapper.selectPage(productPage, wrapper);
+        IPage<ProductInfo> result = productInfoMapper.selectPage(productPage, wrapper);
+        redisCacheUtil.set(cacheKey, result, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        return result;
     }
 
     @Override
@@ -144,6 +190,9 @@ public class ProductServiceImpl implements ProductService {
         existing.setSort(product.getSort());
         existing.setUpdateTime(LocalDateTime.now());
         productInfoMapper.updateById(existing);
+        redisCacheUtil.delete(CacheConstants.PRODUCT_DETAIL + product.getProductId());
+        redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + existing.getShopId() + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
     }
 
     @Override
@@ -163,6 +212,9 @@ public class ProductServiceImpl implements ProductService {
         }
 
         productInfoMapper.deleteById(productId);
+        redisCacheUtil.delete(CacheConstants.PRODUCT_DETAIL + productId);
+        redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + product.getShopId() + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
     }
 
     @Override
@@ -170,11 +222,15 @@ public class ProductServiceImpl implements ProductService {
         ShopInfo shop = shopInfoMapper.selectOne(new LambdaQueryWrapper<ShopInfo>()
                 .eq(ShopInfo::getMerchantUserId, merchantUserId)
                 .eq(ShopInfo::getIsDeleted, 0));
+        
+        Page<ProductInfo> productPage = new Page<>(page, size);
+        
         if (shop == null) {
-            return new Page<>(page, size);
+            productPage.setRecords(new java.util.ArrayList<>());
+            productPage.setTotal(0);
+            return productPage;
         }
 
-        Page<ProductInfo> productPage = new Page<>(page, size);
         LambdaQueryWrapper<ProductInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ProductInfo::getShopId, shop.getShopId())
                 .eq(ProductInfo::getIsDeleted, 0)
@@ -241,6 +297,9 @@ public class ProductServiceImpl implements ProductService {
         product.setProductStatus(0);
         product.setUpdateTime(LocalDateTime.now());
         productInfoMapper.updateById(product);
+        redisCacheUtil.delete(CacheConstants.PRODUCT_DETAIL + productId);
+        redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + product.getShopId() + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
     }
 
     @Override
@@ -253,6 +312,9 @@ public class ProductServiceImpl implements ProductService {
         product.setProductStatus(1);
         product.setUpdateTime(LocalDateTime.now());
         productInfoMapper.updateById(product);
+        redisCacheUtil.delete(CacheConstants.PRODUCT_DETAIL + productId);
+        redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + product.getShopId() + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
     }
 
     @Override
@@ -264,7 +326,35 @@ public class ProductServiceImpl implements ProductService {
                 product.setProductStatus(0);
                 product.setUpdateTime(LocalDateTime.now());
                 productInfoMapper.updateById(product);
+                redisCacheUtil.delete(CacheConstants.PRODUCT_DETAIL + productId);
+                redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + product.getShopId() + "*");
+                redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
             }
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateProductImage(Long productId, String productImage, Long merchantUserId) {
+        ProductInfo product = productInfoMapper.selectById(productId);
+        if (product == null) {
+            throw new BusinessException(ResultCode.ERROR, "商品不存在");
+        }
+
+        ShopInfo shop = shopInfoMapper.selectOne(new LambdaQueryWrapper<ShopInfo>()
+                .eq(ShopInfo::getShopId, product.getShopId())
+                .eq(ShopInfo::getMerchantUserId, merchantUserId)
+                .eq(ShopInfo::getIsDeleted, 0));
+        if (shop == null) {
+            throw new BusinessException(ResultCode.ERROR, "无权操作该商品");
+        }
+
+        product.setProductImage(productImage);
+        product.setUpdateTime(LocalDateTime.now());
+        productInfoMapper.updateById(product);
+
+        redisCacheUtil.delete(CacheConstants.PRODUCT_DETAIL + productId);
+        redisCacheUtil.deleteByPattern(CacheConstants.PRODUCT_LIST + product.getShopId() + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.SEARCH_PRODUCT + "*");
     }
 }

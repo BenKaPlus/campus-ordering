@@ -43,13 +43,52 @@
 
         <el-divider content-position="left">资质证明</el-divider>
         <el-form-item label="营业执照" prop="businessLicense">
-          <el-input v-model="applyForm.businessLicense" placeholder="请输入营业执照图片 URL" />
+          <div class="upload-container">
+            <el-upload
+              class="upload-demo"
+              :auto-upload="false"
+              :on-change="(file, fileList) => handleFileChange(file, fileList, 'businessLicense')"
+              :before-upload="beforeUpload"
+              :limit="1"
+              :file-list="businessLicenseList"
+              list-type="picture"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+              <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过2MB</div>
+            </el-upload>
+          </div>
         </el-form-item>
         <el-form-item label="身份证正面" prop="idCardFront">
-          <el-input v-model="applyForm.idCardFront" placeholder="请输入身份证正面图片 URL" />
+          <div class="upload-container">
+            <el-upload
+              class="upload-demo"
+              :auto-upload="false"
+              :on-change="(file, fileList) => handleFileChange(file, fileList, 'idCardFront')"
+              :before-upload="beforeUpload"
+              :limit="1"
+              :file-list="idCardFrontList"
+              list-type="picture"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+              <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过2MB</div>
+            </el-upload>
+          </div>
         </el-form-item>
         <el-form-item label="身份证反面" prop="idCardBack">
-          <el-input v-model="applyForm.idCardBack" placeholder="请输入身份证反面图片 URL" />
+          <div class="upload-container">
+            <el-upload
+              class="upload-demo"
+              :auto-upload="false"
+              :on-change="(file, fileList) => handleFileChange(file, fileList, 'idCardBack')"
+              :before-upload="beforeUpload"
+              :limit="1"
+              :file-list="idCardBackList"
+              list-type="picture"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+              <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过2MB</div>
+            </el-upload>
+          </div>
         </el-form-item>
 
         <el-form-item label="验证码" prop="captcha">
@@ -85,6 +124,7 @@
 <script>
 import request from '@/api'
 import { getCaptcha } from '@/api/auth'
+import axios from 'axios'
 
 export default {
   name: 'MerchantApply',
@@ -100,6 +140,9 @@ export default {
       captchaUrl: '',
       uuid: '',
       loading: false,
+      businessLicenseList: [],
+      idCardFrontList: [],
+      idCardBackList: [],
       applyForm: {
         userNo: '',
         password: '',
@@ -140,6 +183,15 @@ export default {
         shopType: [
           { required: true, message: '请选择店铺类型', trigger: 'change' }
         ],
+        businessLicense: [
+          { required: true, message: '请上传营业执照', trigger: 'change' }
+        ],
+        idCardFront: [
+          { required: true, message: '请上传身份证正面', trigger: 'change' }
+        ],
+        idCardBack: [
+          { required: true, message: '请上传身份证反面', trigger: 'change' }
+        ],
         captcha: [
           { required: true, message: '请输入验证码', trigger: 'blur' }
         ]
@@ -160,6 +212,53 @@ export default {
         this.$message.error('获取验证码失败')
       }
     },
+    beforeUpload(file) {
+      const isJPG = file.type === 'image/jpeg' || file.type === 'image/png'
+      const isLt2M = file.size / 1024 / 1024 < 2
+
+      if (!isJPG) {
+        this.$message.error('只能上传JPG/PNG格式的图片')
+      }
+      if (!isLt2M) {
+        this.$message.error('上传图片大小不能超过2MB')
+      }
+      return isJPG && isLt2M
+    },
+    handleUploadSuccess(response, file, fileList, fieldName) {
+      console.log('Upload response:', response)
+      if (response.code === 200) {
+        this.applyForm[fieldName] = response.data
+        this[fieldName + 'List'] = fileList
+        this.$message.success('上传成功')
+      } else {
+        this.$message.error('上传失败：' + (response.msg || '未知错误'))
+      }
+    },
+    handleFileChange(file, fileList, fieldName) {
+      if (file.status === 'ready') {
+        const formData = new FormData()
+        formData.append('file', file.raw)
+
+        axios.post('/api/common/upload/image', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': localStorage.getItem('token') ? 'Bearer ' + localStorage.getItem('token') : ''
+          }
+        }).then(response => {
+          console.log('Upload response:', response)
+          if (response.data.code === 200) {
+            this.applyForm[fieldName] = response.data.data
+            this[fieldName + 'List'] = fileList
+            this.$message.success('上传成功')
+          } else {
+            this.$message.error('上传失败：' + (response.data.msg || '未知错误'))
+          }
+        }).catch(error => {
+          console.error('Upload error:', error)
+          this.$message.error('上传失败，请重试')
+        })
+      }
+    },
     handleApply() {
       this.$refs.applyForm.validate(async(valid) => {
         if (valid) {
@@ -169,10 +268,10 @@ export default {
               url: '/auth/register/merchant',
               method: 'post',
               data: {
-                username: this.applyForm.username,
+                userNo: this.applyForm.userNo,
                 password: this.applyForm.password,
                 phone: this.applyForm.phone,
-                realName: this.applyForm.realName,
+                userName: this.applyForm.userName,
                 shopName: this.applyForm.shopName,
                 shopDescription: this.applyForm.shopDescription,
                 shopType: this.applyForm.shopType,
@@ -245,6 +344,24 @@ export default {
 .login-link a {
   color: #409EFF;
   text-decoration: none;
+}
+
+.upload-container {
+  width: 100%;
+}
+
+::v-deep .el-upload-list {
+  margin-top: 10px;
+}
+
+::v-deep .el-upload-list__item {
+  width: 100%;
+}
+
+::v-deep .el-upload-list__item img {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
 }
 
 ::v-deep .el-alert {

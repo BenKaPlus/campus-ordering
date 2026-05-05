@@ -71,4 +71,9 @@ public interface ProductService {
      * 批量下架商品
      */
     void batchOfflineProduct(List<Long> productIds, String reason);
+
+    /**
+     * 更新商品图片
+     */
+    void updateProductImage(Long productId, String productImage, Long merchantUserId);
 }

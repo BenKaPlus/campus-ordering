@@ -10,18 +10,28 @@ import com.campus.ordering.service.FileService;
 import com.campus.ordering.service.ProductService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/common")
 @Api(tags = "公共接口")
-public class CommonController {
+public class CommonController implements WebMvcConfigurer {
+
+    @Value("${system.file.upload-path}")
+    private String uploadPath;
+
+    @Value("${system.file.access-url}")
+    private String accessUrl;
 
     @Resource
     private ShopService shopService;
@@ -31,6 +41,13 @@ public class CommonController {
     private FileService fileService;
     @Resource
     private ProductService productService;
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 配置本地文件访问路径
+        registry.addResourceHandler("/api/file/**")
+                .addResourceLocations("file:" + uploadPath + "/");
+    }
 
     @GetMapping("/shop/category/list")
     @ApiOperation("获取店铺分类列表")

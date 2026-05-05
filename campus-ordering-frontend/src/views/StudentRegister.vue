@@ -111,10 +111,10 @@ export default {
               url: '/auth/register/student',
               method: 'post',
               data: {
-                username: this.registerForm.username,
+                userNo: this.registerForm.userNo,
                 password: this.registerForm.password,
                 phone: this.registerForm.phone,
-                realName: this.registerForm.realName,
+                userName: this.registerForm.userName,
                 captcha: this.registerForm.captcha,
                 uuid: this.registerForm.uuid
               }

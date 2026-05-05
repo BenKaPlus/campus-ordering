@@ -99,6 +99,14 @@ public class MerchantController {
         return Result.success();
     }
 
+    @PutMapping("/product/image")
+    @ApiOperation("更新商品图片")
+    public Result<Void> updateProductImage(@RequestParam Long productId, @RequestParam String productImage, HttpServletRequest request) {
+        Long merchantUserId = getUserId(request);
+        productService.updateProductImage(productId, productImage, merchantUserId);
+        return Result.success();
+    }
+
     // ==================== 订单接口 ====================
     @GetMapping("/order/list")
     @ApiOperation("获取店铺订单列表")

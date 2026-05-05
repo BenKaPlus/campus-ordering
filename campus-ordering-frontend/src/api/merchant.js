@@ -27,6 +27,9 @@ export function updateProductStatus(productId, status) {
 export function deleteProduct(productId) {
   return request({ url: '/merchant/product/delete/' + productId, method: 'delete' })
 }
+export function updateProductImage(productId, productImage) {
+  return request({ url: '/merchant/product/image', method: 'put', params: { productId, productImage } })
+}
 
 // 订单
 export function getMerchantOrderList(params) {
