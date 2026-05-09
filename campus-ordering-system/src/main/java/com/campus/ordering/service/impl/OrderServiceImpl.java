@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campus.ordering.common.ResultCode;
+import com.campus.ordering.dto.BatchOrderCreateDTO;
 import com.campus.ordering.dto.OrderCreateDTO;
+import com.campus.ordering.dto.ShopPaymentDTO;
 import com.campus.ordering.entity.*;
 import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.mapper.*;
@@ -14,6 +16,7 @@ import com.campus.ordering.vo.AdminOrderDetailVO;
 import com.campus.ordering.vo.AdminOrderVO;
 import com.campus.ordering.vo.OrderItemVO;
 import com.campus.ordering.vo.OrderStatusLogVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
 
@@ -70,7 +74,13 @@ public class OrderServiceImpl implements OrderService {
             if (product != null) {
                 cart.setProductName(product.getProductName());
                 cart.setProductImage(product.getProductImage());
-                // 如果有规格，则使用规格价格，否则使用商品原价
+                ShopInfo shop = shopInfoMapper.selectById(product.getShopId());
+                if (shop != null) {
+                    cart.setShopName(shop.getShopName());
+                    cart.setDeliveryFee(shop.getDeliveryFee());
+                    cart.setWxQrcode(shop.getWxQrcode());
+                    cart.setAliQrcode(shop.getAliQrcode());
+                }
                 if (cart.getSpecId() != null) {
                     ProductSpec spec = productSpecMapper.selectById(cart.getSpecId());
                     if (spec != null) {
@@ -202,6 +212,119 @@ public class OrderServiceImpl implements OrderService {
         saveOrderStatusLog(order.getOrderId(), orderNo, null, 0, "用户下单", userId, sysUserMapper.selectById(userId).getUserName());
 
         return orderNo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<ShopPaymentDTO> createBatchOrder(BatchOrderCreateDTO dto, Long userId) {
+        log.info("createBatchOrder called, userId: {}, dto: {}", userId, dto);
+        List<ShopPaymentDTO> paymentList = new ArrayList<>();
+
+        try {
+        for (BatchOrderCreateDTO.ShopOrderDTO shopOrder : dto.getShopOrders()) {
+            log.info("Processing shop order: {}", shopOrder);
+            ShopInfo shop = shopInfoMapper.selectById(shopOrder.getShopId());
+            if (shop == null || shop.getShopStatus() != 1) {
+                throw new BusinessException(ResultCode.ERROR, "店铺不存在或未营业: " + shopOrder.getShopName());
+            }
+
+            if ((shop.getWxQrcode() == null || shop.getWxQrcode().isEmpty()) &&
+                (shop.getAliQrcode() == null || shop.getAliQrcode().isEmpty())) {
+                throw new BusinessException(ResultCode.ERROR, "店铺 " + shop.getShopName() + " 未设置收款码");
+            }
+
+            UserAddress address = userAddressMapper.selectOne(new LambdaQueryWrapper<UserAddress>()
+                    .eq(UserAddress::getAddressId, dto.getAddressId())
+                    .eq(UserAddress::getUserId, userId)
+                    .eq(UserAddress::getIsDeleted, 0));
+            if (address == null) {
+                throw new BusinessException(ResultCode.ERROR, "收货地址不存在");
+            }
+
+            String orderNo = IdUtil.getSnowflakeNextIdStr();
+            BigDecimal productAmount = BigDecimal.ZERO;
+            List<OrderItem> itemList = new ArrayList<>();
+
+            for (BatchOrderCreateDTO.OrderItemDTO itemDTO : shopOrder.getItemList()) {
+                ProductInfo product = productInfoMapper.selectById(itemDTO.getProductId());
+                if (product == null || product.getProductStatus() != 1 || !product.getShopId().equals(shopOrder.getShopId())) {
+                    throw new BusinessException(ResultCode.ERROR, "商品不存在或已下架");
+                }
+
+                BigDecimal price = product.getPrice();
+                if (itemDTO.getSpecId() != null) {
+                    ProductSpec spec = productSpecMapper.selectById(itemDTO.getSpecId());
+                    if (spec != null && spec.getProductId().equals(product.getProductId())) {
+                        price = spec.getSpecPrice();
+                        spec.setStock(spec.getStock() - itemDTO.getProductNum());
+                        productSpecMapper.updateById(spec);
+                    }
+                }
+
+                BigDecimal totalPrice = price.multiply(BigDecimal.valueOf(itemDTO.getProductNum()));
+                productAmount = productAmount.add(totalPrice);
+
+                OrderItem orderItem = new OrderItem();
+                orderItem.setOrderNo(orderNo);
+                orderItem.setProductId(product.getProductId());
+                orderItem.setProductName(product.getProductName());
+                orderItem.setProductImage(product.getProductImage());
+                orderItem.setSpecId(itemDTO.getSpecId());
+                orderItem.setProductPrice(price);
+                orderItem.setProductNum(itemDTO.getProductNum());
+                orderItem.setTotalPrice(totalPrice);
+                itemList.add(orderItem);
+            }
+
+            if (productAmount.compareTo(shop.getMinOrderAmount()) < 0) {
+                throw new BusinessException(ResultCode.ERROR, shop.getShopName() + " 未达到起送金额");
+            }
+
+            BigDecimal deliveryFee = shop.getDeliveryFee() != null ? shop.getDeliveryFee() : BigDecimal.ZERO;
+            BigDecimal totalAmount = productAmount.add(deliveryFee);
+
+            OrderInfo order = new OrderInfo();
+            order.setOrderNo(orderNo);
+            order.setUserId(userId);
+            order.setShopId(shop.getShopId());
+            order.setReceiverName(address.getReceiverName());
+            order.setReceiverPhone(address.getReceiverPhone());
+            order.setReceiverAddress(address.getCampusArea() + address.getAddressDetail());
+            order.setProductAmount(productAmount);
+            order.setDeliveryFee(deliveryFee);
+            order.setTotalAmount(totalAmount);
+            order.setPayAmount(totalAmount);
+            order.setOrderStatus(0);
+            order.setPayStatus(0);
+            order.setPayType("wx".equals(shopOrder.getPayType()) ? 1 : 2);
+            order.setOrderRemark(shopOrder.getOrderRemark());
+            order.setExpireTime(LocalDateTime.now().plusMinutes(15));
+            orderInfoMapper.insert(order);
+
+            for (OrderItem item : itemList) {
+                item.setOrderId(order.getOrderId());
+            }
+            orderItemMapper.batchInsert(itemList);
+
+            saveOrderStatusLog(order.getOrderId(), orderNo, null, 0, "用户下单", userId, sysUserMapper.selectById(userId).getUserName());
+
+            ShopPaymentDTO paymentDTO = new ShopPaymentDTO();
+            paymentDTO.setShopId(shop.getShopId());
+            paymentDTO.setShopName(shop.getShopName());
+            paymentDTO.setOrderId(order.getOrderId());
+            paymentDTO.setOrderNo(orderNo);
+            paymentDTO.setPayAmount(totalAmount);
+            paymentDTO.setPayType("wx".equals(shopOrder.getPayType()) ? 1 : 2);
+            paymentDTO.setWxQrcode(shop.getWxQrcode());
+            paymentDTO.setAliQrcode(shop.getAliQrcode());
+            paymentList.add(paymentDTO);
+        }
+        } catch (Exception e) {
+            log.error("createBatchOrder error", e);
+            throw e;
+        }
+
+        return paymentList;
     }
 
     @Override

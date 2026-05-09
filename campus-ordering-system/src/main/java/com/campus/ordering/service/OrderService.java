@@ -1,10 +1,14 @@
 package com.campus.ordering.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.campus.ordering.dto.BatchOrderCreateDTO;
 import com.campus.ordering.dto.OrderCreateDTO;
+import com.campus.ordering.dto.ShopPaymentDTO;
 import com.campus.ordering.entity.OrderInfo;
 import com.campus.ordering.vo.AdminOrderDetailVO;
 import com.campus.ordering.vo.AdminOrderVO;
+
+import java.util.List;
 
 public interface OrderService {
     /**
@@ -16,6 +20,11 @@ public interface OrderService {
      * 创建订单
      */
     String createOrder(OrderCreateDTO dto, Long userId);
+
+    /**
+     * 批量创建订单（按店铺拆单）
+     */
+    List<ShopPaymentDTO> createBatchOrder(BatchOrderCreateDTO dto, Long userId);
 
     /**
      * 取消订单

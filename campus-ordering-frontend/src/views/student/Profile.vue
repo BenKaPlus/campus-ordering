@@ -81,9 +81,10 @@
           </div>
 
           <el-table :data="addressList" border style="width: 100%; margin-top: 15px;">
-            <el-table-column prop="contactName" label="联系人" width="120"></el-table-column>
-            <el-table-column prop="phone" label="手机号" width="150"></el-table-column>
-            <el-table-column prop="address" label="收货地址"></el-table-column>
+            <el-table-column prop="receiverName" label="联系人" width="100"></el-table-column>
+            <el-table-column prop="receiverPhone" label="手机号" width="130"></el-table-column>
+            <el-table-column prop="campusArea" label="校区" width="80"></el-table-column>
+            <el-table-column prop="addressDetail" label="详细地址"></el-table-column>
             <el-table-column label="默认" width="80">
               <template slot-scope="scope">
                 <el-tag v-if="scope.row.isDefault === 1" type="success">默认</el-tag>
@@ -94,7 +95,7 @@
               <template slot-scope="scope">
                 <el-button type="text" size="small" @click="showAddressDialog('edit', scope.row)">编辑</el-button>
                 <el-button type="text" size="small" @click="handleSetDefault(scope.row.addressId)" v-if="scope.row.isDefault !== 1">设为默认</el-button>
-                <el-button type="text" size="small" style="color: #F56C6C;" @click="handleDeleteAddress(scope.row.addressId)">删除</el-button>
+                <el-button type="text" size="small" style="color: #F56C6C;" @click="handleDeleteAddress(scope.row.addressId)" v-if="scope.row.isDefault !== 1">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -104,14 +105,22 @@
 
     <el-dialog :title="addressDialogTitle" :visible.sync="addressDialogVisible" width="500px">
       <el-form ref="addressForm" :model="addressForm" :rules="addressRules" label-width="80px">
-        <el-form-item label="联系人" prop="contactName">
-          <el-input v-model="addressForm.contactName" placeholder="请输入联系人姓名"></el-input>
+        <el-form-item label="联系人" prop="receiverName">
+          <el-input v-model="addressForm.receiverName" placeholder="请输入联系人姓名"></el-input>
         </el-form-item>
-        <el-form-item label="手机号" prop="phone">
-          <el-input v-model="addressForm.phone" placeholder="请输入手机号"></el-input>
+        <el-form-item label="手机号" prop="receiverPhone">
+          <el-input v-model="addressForm.receiverPhone" placeholder="请输入手机号"></el-input>
         </el-form-item>
-        <el-form-item label="收货地址" prop="address">
-          <el-input v-model="addressForm.address" placeholder="请输入详细收货地址" type="textarea" :rows="2"></el-input>
+        <el-form-item label="校区" prop="campusArea">
+          <el-select v-model="addressForm.campusArea" placeholder="请选择校区" style="width: 100%;">
+            <el-option label="东区" value="东区"></el-option>
+            <el-option label="西区" value="西区"></el-option>
+            <el-option label="南区" value="南区"></el-option>
+            <el-option label="北区" value="北区"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="详细地址" prop="addressDetail">
+          <el-input v-model="addressForm.addressDetail" placeholder="请输入详细收货地址，如：XX宿舍楼XX室" type="textarea" :rows="2"></el-input>
         </el-form-item>
       </el-form>
       <div slot="footer">
@@ -147,14 +156,16 @@ export default {
       addressDialogTitle: '新增地址',
       addressForm: {
         addressId: null,
-        contactName: '',
-        phone: '',
-        address: ''
+        receiverName: '',
+        receiverPhone: '',
+        campusArea: '',
+        addressDetail: ''
       },
       addressRules: {
-        contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
-        phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
-        address: [{ required: true, message: '请输入收货地址', trigger: 'blur' }]
+        receiverName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
+        receiverPhone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
+        campusArea: [{ required: true, message: '请选择校区', trigger: 'change' }],
+        addressDetail: [{ required: true, message: '请输入详细地址', trigger: 'blur' }]
       }
     }
   },
@@ -219,23 +230,26 @@ export default {
         this.addressDialogTitle = '新增地址'
         this.addressForm = {
           addressId: null,
-          contactName: '',
-          phone: '',
-          address: ''
+          receiverName: '',
+          receiverPhone: '',
+          campusArea: '',
+          addressDetail: ''
         }
       } else {
         this.addressDialogTitle = '编辑地址'
         this.addressForm = {
           addressId: row.addressId,
-          contactName: row.contactName,
-          phone: row.phone,
-          address: row.address
+          receiverName: row.receiverName,
+          receiverPhone: row.receiverPhone,
+          campusArea: row.campusArea,
+          addressDetail: row.addressDetail
         }
       }
       this.addressDialogVisible = true
     },
     async handleSaveAddress() {
       try {
+        await this.$refs.addressForm.validate()
         let res
         if (this.addressForm.addressId) {
           res = await updateAddress(this.addressForm)
@@ -250,7 +264,8 @@ export default {
           this.$message.error(res.msg || '保存失败')
         }
       } catch (error) {
-        this.$message.error('保存失败')
+        console.error('保存地址失败:', error)
+        this.$message.error(error.message || '保存失败')
       }
     },
     async handleSetDefault(addressId) {

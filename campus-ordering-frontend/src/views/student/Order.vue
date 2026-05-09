@@ -1,10 +1,8 @@
 <template>
   <div class="order-container">
-    <!-- 结算页面 -->
     <div v-if="isSettleMode">
       <el-card>
         <div slot="header">订单确认</div>
-        <!-- 收货地址 -->
         <div class="address-section">
           <h4>选择收货地址</h4>
           <el-radio-group v-model="selectedAddressId">
@@ -14,10 +12,12 @@
             </el-radio>
           </el-radio-group>
         </div>
-        <!-- 商品信息 -->
-        <div class="product-section">
-          <h4>商品信息</h4>
-          <el-table :data="settleInfo.cartList" style="width: 100%;">
+
+        <div v-for="shop in groupedCartList" :key="shop.shopId" class="shop-section">
+          <div class="shop-header">
+            <span class="shop-name">{{ shop.shopName }}</span>
+          </div>
+          <el-table :data="shop.items" style="width: 100%;">
             <el-table-column prop="productName" label="商品名称"></el-table-column>
             <el-table-column prop="productImage" label="商品图片" width="100">
               <template slot-scope="scope">
@@ -25,26 +25,35 @@
               </template>
             </el-table-column>
             <el-table-column prop="productPrice" label="单价" width="100">
-              <template slot-scope="scope">
-                ¥{{ scope.row.productPrice }}
-              </template>
+              <template slot-scope="scope">¥{{ scope.row.productPrice }}</template>
             </el-table-column>
             <el-table-column prop="productNum" label="数量" width="100"></el-table-column>
             <el-table-column label="小计" width="120">
-              <template slot-scope="scope">
-                ¥{{ (scope.row.productPrice * scope.row.productNum).toFixed(2) }}
-              </template>
+              <template slot-scope="scope">¥{{ (scope.row.productPrice * scope.row.productNum).toFixed(2) }}</template>
             </el-table-column>
           </el-table>
+          <div class="shop-footer">
+            <div class="pay-type-section">
+              <span class="pay-label">支付方式：</span>
+              <el-radio-group v-model="shop.selectedPayType">
+                <el-radio label="wx" :disabled="!shop.wxQrcode">微信支付</el-radio>
+                <el-radio label="ali" :disabled="!shop.aliQrcode">支付宝</el-radio>
+              </el-radio-group>
+            </div>
+            <div class="shop-total">
+              <span>配送费：¥{{ shop.deliveryFee || 0 }}</span>
+              <span class="shop-amount">店铺合计：¥{{ shop.shopTotal.toFixed(2) }}</span>
+            </div>
+          </div>
         </div>
-        <!-- 结算信息 -->
+
         <div class="settle-footer">
-          <span class="total-price">合计：¥{{ settleTotalPrice.toFixed(2) }}</span>
-          <el-button type="primary" @click="submitOrder">提交订单</el-button>
+          <span class="total-price">总计：¥{{ settleTotalPrice.toFixed(2) }}</span>
+          <el-button type="primary" @click="submitBatchOrder">提交订单</el-button>
         </div>
       </el-card>
     </div>
-    <!-- 订单列表页面 -->
+
     <el-card v-else>
       <div slot="header" class="header-wrapper">
         <el-tabs v-model="activeTab" @tab-click="getOrderList">
@@ -76,9 +85,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="payAmount" label="实付金额" width="100">
-          <template slot-scope="scope">
-            ¥{{ scope.row.payAmount }}
-          </template>
+          <template slot-scope="scope">¥{{ scope.row.payAmount }}</template>
         </el-table-column>
         <el-table-column prop="orderStatus" label="订单状态" width="100">
           <template slot-scope="scope">
@@ -86,9 +93,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="下单时间" width="160">
-          <template slot-scope="scope">
-            {{ scope.row.createTime | formatDate }}
-          </template>
+          <template slot-scope="scope">{{ scope.row.createTime | formatDate }}</template>
         </el-table-column>
         <el-table-column label="操作" width="200">
           <template slot-scope="scope">
@@ -110,7 +115,6 @@
       ></el-pagination>
     </el-card>
 
-    <!-- 订单详情抽屉 -->
     <el-drawer title="订单详情" :visible.sync="orderDetailVisible" size="40%">
       <div v-if="orderDetail.orderId" class="order-detail-content">
         <el-descriptions :column="1" border>
@@ -142,11 +146,20 @@
         <el-button v-if="orderDetail.orderStatus === 4" type="primary" size="small" @click="confirmReceive(orderDetail.orderId)">确认收货</el-button>
       </div>
     </el-drawer>
+
+    <el-dialog :visible.sync="qrcodeDialogVisible" title="扫码支付" width="300px" center>
+      <div class="qrcode-content">
+        <p class="qrcode-shop">{{ currentShopPayment.shopName }}</p>
+        <p class="qrcode-amount">应付：¥{{ currentShopPayment.payAmount }}</p>
+        <img :src="currentShopPayment.qrcodeUrl" class="qrcode-image">
+        <p class="qrcode-tip">请使用{{ currentShopPayment.payType === 'wx' ? '微信' : '支付宝' }}扫码支付</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { getOrderList, cancelOrder, getOrderDetail, getWxPayParams, updateOrderStatus, getSettleInfo, createOrder, getCartList } from '@/api/student'
+import { getOrderList, cancelOrder, getOrderDetail, getWxPayParams, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList } from '@/api/student'
 
 export default {
   name: 'StudentOrder',
@@ -168,14 +181,22 @@ export default {
         defaultAddressId: null
       },
       selectedAddressId: null,
+      groupedCartList: [],
+      qrcodeDialogVisible: false,
+      currentShopPayment: {
+        shopName: '',
+        payAmount: 0,
+        qrcodeUrl: '',
+        payType: ''
+      },
+      paymentList: [],
+      currentPaymentIndex: 0
     }
   },
   computed: {
     settleTotalPrice() {
       if (!this.isSettleMode) return 0
-      const productAmount = this.settleInfo.cartList.reduce((sum, item) => sum + item.productPrice * item.productNum, 0)
-      const deliveryFee = this.settleInfo.cartList.length > 0 ? this.settleInfo.cartList[0].deliveryFee || 0 : 0
-      return productAmount + deliveryFee
+      return this.groupedCartList.reduce((sum, shop) => sum + shop.shopTotal, 0)
     }
   },
   created() {
@@ -185,7 +206,6 @@ export default {
     } else {
       this.getOrderList()
     }
-    // 监听订单刷新事件
     window.addEventListener('refreshOrder', this.getOrderList)
   },
   beforeDestroy() {
@@ -194,10 +214,7 @@ export default {
   methods: {
     async getOrderList() {
       this.loading = true
-      const params = {
-        page: this.page,
-        size: this.size
-      }
+      const params = { page: this.page, size: this.size }
       if (this.activeTab !== 'all') {
         params.status = this.activeTab
       }
@@ -234,8 +251,38 @@ export default {
             this.settleInfo.cartList = cartRes.data.filter(item => validCartIds.includes(item.cartId))
           }
         }
+        this.groupCartByShop()
       }
       this.loading = false
+    },
+    groupCartByShop() {
+      const shopMap = new Map()
+      for (const item of this.settleInfo.cartList) {
+        if (!shopMap.has(item.shopId)) {
+          shopMap.set(item.shopId, {
+            shopId: item.shopId,
+            shopName: item.shopName || '店铺商品',
+            deliveryFee: item.deliveryFee || 0,
+            items: [],
+            selectedPayType: 'wx',
+            wxQrcode: item.wxQrcode || '',
+            aliQrcode: item.aliQrcode || ''
+          })
+        }
+        shopMap.get(item.shopId).items.push(item)
+      }
+      for (const shop of shopMap.values()) {
+        const productTotal = shop.items.reduce((sum, item) => sum + item.productPrice * item.productNum, 0)
+        shop.shopTotal = productTotal + (shop.deliveryFee || 0)
+        if (!shop.wxQrcode && !shop.aliQrcode) {
+          shop.selectedPayType = ''
+        } else if (!shop.wxQrcode) {
+          shop.selectedPayType = 'ali'
+        } else if (!shop.aliQrcode) {
+          shop.selectedPayType = 'wx'
+        }
+      }
+      this.groupedCartList = Array.from(shopMap.values())
     },
     getStatusType(status) {
       const typeMap = { 0: 'info', 1: 'warning', 2: 'primary', 4: 'warning', 5: 'success', 6: 'info' }
@@ -266,7 +313,6 @@ export default {
     async goPay(orderNo) {
       const res = await getWxPayParams(orderNo)
       if (res.code === 200) {
-        // 调用微信支付
         this.$message.info('支付功能开发中')
       }
     },
@@ -281,28 +327,54 @@ export default {
         this.getOrderList()
       })
     },
-    async submitOrder() {
+    async submitBatchOrder() {
       if (!this.selectedAddressId) {
         this.$message.error('请选择收货地址')
         return
       }
-      if (!this.settleInfo.cartList.length) {
-        this.$message.error('未获取到结算商品，请返回购物车重试')
-        return
+      for (const shop of this.groupedCartList) {
+        if (!shop.selectedPayType) {
+          this.$message.error(`请为 ${shop.shopName} 选择支付方式`)
+          return
+        }
+        if ((shop.selectedPayType === 'wx' && !shop.wxQrcode) ||
+            (shop.selectedPayType === 'ali' && !shop.aliQrcode)) {
+          this.$message.error(`${shop.shopName} 未设置${shop.selectedPayType === 'wx' ? '微信' : '支付宝'}收款码`)
+          return
+        }
       }
-      const orderData = {
-        shopId: this.settleInfo.cartList[0].shopId,
-        addressId: this.selectedAddressId,
-        itemList: this.settleInfo.cartList.map(item => ({
+      const shopOrders = this.groupedCartList.map(shop => ({
+        shopId: shop.shopId,
+        shopName: shop.shopName,
+        payType: shop.selectedPayType,
+        itemList: shop.items.map(item => ({
           productId: item.productId,
           specId: item.specId,
           productNum: item.productNum
         }))
+      }))
+      const res = await createBatchOrder({
+        addressId: this.selectedAddressId,
+        shopOrders: shopOrders
+      })
+      if (res.code === 200 && res.data) {
+        this.paymentList = res.data
+        this.currentPaymentIndex = 0
+        this.showNextPayment()
       }
-      const res = await createOrder(orderData)
-      if (res.code === 200) {
-        this.$message.success('订单创建成功')
-        // 跳转到支付页面或订单详情页
+    },
+    showNextPayment() {
+      if (this.currentPaymentIndex < this.paymentList.length) {
+        const payment = this.paymentList[this.currentPaymentIndex]
+        this.currentShopPayment = {
+          shopName: payment.shopName,
+          payAmount: payment.payAmount,
+          qrcodeUrl: payment.payType === 'wx' ? payment.wxQrcode : payment.aliQrcode,
+          payType: payment.payType
+        }
+        this.qrcodeDialogVisible = true
+      } else {
+        this.$message.success('所有订单已创建，请完成支付')
         this.$router.push('/order')
       }
     }
@@ -326,6 +398,50 @@ export default {
   margin-right: 10px;
   height: auto;
   padding: 15px 20px;
+}
+.shop-section {
+  margin-bottom: 30px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  padding: 15px;
+}
+.shop-header {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ebeef5;
+}
+.shop-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #303133;
+}
+.shop-footer {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #ebeef5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pay-type-section {
+  display: flex;
+  align-items: center;
+}
+.pay-label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+.shop-total {
+  text-align: right;
+}
+.shop-total span {
+  margin-left: 15px;
+  color: #606266;
+}
+.shop-amount {
+  color: #f56c6c;
+  font-weight: bold;
+  font-size: 16px;
 }
 .settle-footer {
   margin-top: 30px;
@@ -377,5 +493,28 @@ export default {
   flex: 1;
   display: flex;
   justify-content: space-between;
+}
+.qrcode-content {
+  text-align: center;
+}
+.qrcode-shop {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+.qrcode-amount {
+  font-size: 20px;
+  color: #f56c6c;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+.qrcode-image {
+  width: 200px;
+  height: 200px;
+  margin-bottom: 15px;
+}
+.qrcode-tip {
+  color: #909399;
+  font-size: 14px;
 }
 </style>

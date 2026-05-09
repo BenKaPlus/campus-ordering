@@ -105,9 +105,7 @@ public class UserAddressServiceImpl implements UserAddressService {
         if (address == null || !address.getUserId().equals(userId)) {
             throw new BusinessException(ResultCode.ERROR, "地址不存在");
         }
-        address.setIsDeleted(1);
-        address.setUpdateTime(LocalDateTime.now());
-        userAddressMapper.updateById(address);
+        userAddressMapper.deleteById(addressId);
     }
 
     @Override

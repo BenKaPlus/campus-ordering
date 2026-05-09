@@ -121,6 +121,8 @@ public class ShopServiceImpl implements ShopService {
         existing.setShopAddress(shop.getShopAddress());
         existing.setDeliveryFee(shop.getDeliveryFee());
         existing.setMinOrderAmount(shop.getMinOrderAmount());
+        existing.setWxQrcode(shop.getWxQrcode());
+        existing.setAliQrcode(shop.getAliQrcode());
         existing.setUpdateTime(LocalDateTime.now());
         shopInfoMapper.updateById(existing);
         redisCacheUtil.delete(CacheConstants.SHOP_DETAIL + existing.getShopId());

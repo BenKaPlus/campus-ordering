@@ -65,4 +65,20 @@ public class ShoppingCart {
     @ApiModelProperty(value = "商品图片（非数据库字段）")
     @TableField(exist = false)
     private String productImage;
+
+    @ApiModelProperty(value = "店铺名称（非数据库字段）")
+    @TableField(exist = false)
+    private String shopName;
+
+    @ApiModelProperty(value = "配送费（非数据库字段）")
+    @TableField(exist = false)
+    private BigDecimal deliveryFee;
+
+    @ApiModelProperty(value = "微信收款码（非数据库字段）")
+    @TableField(exist = false)
+    private String wxQrcode;
+
+    @ApiModelProperty(value = "支付宝收款码（非数据库字段）")
+    @TableField(exist = false)
+    private String aliQrcode;
 }

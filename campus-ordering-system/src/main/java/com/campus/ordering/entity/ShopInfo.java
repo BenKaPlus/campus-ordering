@@ -88,6 +88,14 @@ public class ShopInfo {
     @TableField("shop_score")
     private BigDecimal shopScore;
 
+    @ApiModelProperty(value = "微信收款码URL")
+    @TableField("wx_qrcode")
+    private String wxQrcode;
+
+    @ApiModelProperty(value = "支付宝收款码URL")
+    @TableField("ali_qrcode")
+    private String aliQrcode;
+
     @ApiModelProperty(value = "创建时间")
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;

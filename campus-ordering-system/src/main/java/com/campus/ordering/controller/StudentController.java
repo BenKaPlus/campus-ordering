@@ -3,7 +3,10 @@ package com.campus.ordering.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.common.ResultCode;
+import com.campus.ordering.dto.BatchOrderCreateDTO;
+import com.campus.ordering.dto.CartSettleDTO;
 import com.campus.ordering.dto.OrderCreateDTO;
+import com.campus.ordering.dto.ShopPaymentDTO;
 import com.campus.ordering.dto.StudentInfoUpdateDTO;
 import com.campus.ordering.entity.OrderInfo;
 import com.campus.ordering.entity.ShoppingCart;
@@ -17,6 +20,8 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -78,9 +83,9 @@ public class StudentController {
     // ==================== 订单接口 ====================
     @PostMapping("/order/settle")
     @ApiOperation("获取结算信息")
-    public Result<Object> getSettleInfo(@RequestBody List<Long> cartIds, HttpServletRequest request) {
+    public Result<Object> getSettleInfo(@RequestBody CartSettleDTO dto, HttpServletRequest request) {
         Long userId = getUserId(request);
-        return Result.success(orderService.getSettleInfo(cartIds, userId));
+        return Result.success(orderService.getSettleInfo(dto.getCartIds(), userId));
     }
 
     @PostMapping("/order/create")
@@ -88,6 +93,13 @@ public class StudentController {
     public Result<String> createOrder(@Valid @RequestBody OrderCreateDTO dto, HttpServletRequest request) {
         Long userId = getUserId(request);
         return Result.success(orderService.createOrder(dto, userId));
+    }
+
+    @PostMapping("/order/create/batch")
+    @ApiOperation("批量创建订单（按店铺拆单）")
+    public Result<List<ShopPaymentDTO>> createBatchOrder(@Valid @RequestBody BatchOrderCreateDTO dto, HttpServletRequest request) {
+        Long userId = getUserId(request);
+        return Result.success(orderService.createBatchOrder(dto, userId));
     }
 
     @PutMapping("/order/cancel/{orderId}")

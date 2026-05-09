@@ -18,6 +18,9 @@ export function deleteCart(cartIds) {
 export function createOrder(data) {
   return request({ url: '/student/order/create', method: 'post', data })
 }
+export function createBatchOrder(data) {
+  return request({ url: '/student/order/create/batch', method: 'post', data })
+}
 export function getSettleInfo(cartIds) {
   return request({ url: '/student/order/settle', method: 'post', data: { cartIds } })
 }
