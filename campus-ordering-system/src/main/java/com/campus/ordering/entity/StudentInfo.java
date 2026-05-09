@@ -39,6 +39,18 @@ public class StudentInfo {
     @TableField("dormitory")
     private String dormitory;
 
+    @ApiModelProperty(value = "用户姓名")
+    @TableField(exist = false)
+    private String userName;
+
+    @ApiModelProperty(value = "手机号")
+    @TableField(exist = false)
+    private String phone;
+
+    @ApiModelProperty(value = "学号")
+    @TableField(exist = false)
+    private String userNo;
+
     @ApiModelProperty(value = "创建时间")
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;

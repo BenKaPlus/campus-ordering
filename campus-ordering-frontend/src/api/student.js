@@ -11,7 +11,7 @@ export function updateCartNum(cartId, num) {
   return request({ url: '/student/cart/update/num', method: 'put', params: { cartId, num } })
 }
 export function deleteCart(cartIds) {
-  return request({ url: '/student/cart/delete', method: 'delete', data: cartIds })
+  return request({ url: '/student/cart/delete', method: 'post', data: cartIds })
 }
 
 // 订单
@@ -19,7 +19,7 @@ export function createOrder(data) {
   return request({ url: '/student/order/create', method: 'post', data })
 }
 export function getSettleInfo(cartIds) {
-  return request({ url: '/student/order/settle', method: 'post', data: cartIds })
+  return request({ url: '/student/order/settle', method: 'post', data: { cartIds } })
 }
 export function cancelOrder(orderId) {
   return request({ url: '/student/order/cancel/' + orderId, method: 'put' })
@@ -52,4 +52,12 @@ export function deleteAddress(addressId) {
 }
 export function setDefaultAddress(addressId) {
   return request({ url: '/student/address/default/' + addressId, method: 'put' })
+}
+
+// 个人信息
+export function getStudentInfo() {
+  return request({ url: '/student/info', method: 'get' })
+}
+export function updateStudentInfo(data) {
+  return request({ url: '/student/info/update', method: 'put', data })
 }

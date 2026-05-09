@@ -20,6 +20,10 @@ public class ProductInfo {
     @TableField("shop_id")
     private Long shopId;
 
+    @ApiModelProperty(value = "所属店铺名称")
+    @TableField(exist = false)
+    private String shopName;
+
     @ApiModelProperty(value = "所属商品分类ID")
     @TableField("category_id")
     private Long categoryId;

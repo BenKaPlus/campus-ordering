@@ -1,6 +1,8 @@
 package com.campus.ordering.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.campus.ordering.common.CacheConstants;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.entity.ProductInfo;
 import com.campus.ordering.entity.ShoppingCart;
@@ -8,12 +10,13 @@ import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.mapper.ProductInfoMapper;
 import com.campus.ordering.mapper.ShoppingCartMapper;
 import com.campus.ordering.service.CartService;
+import com.campus.ordering.utils.RedisCacheUtil;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class CartServiceImpl implements CartService {
@@ -23,6 +26,9 @@ public class CartServiceImpl implements CartService {
 
     @Resource
     private ProductInfoMapper productInfoMapper;
+
+    @Resource
+    private RedisCacheUtil redisCacheUtil;
 
     @Override
     public void addCart(ShoppingCart cart) {
@@ -57,12 +63,20 @@ public class CartServiceImpl implements CartService {
             cart.setUpdateTime(LocalDateTime.now());
             shoppingCartMapper.insert(cart);
         }
+        deleteCartCache(cart.getUserId());
     }
 
     @Override
     public List<ShoppingCart> getCartList(Long userId) {
         if (userId == null) {
             throw new BusinessException(ResultCode.ERROR, "用户未登录");
+        }
+
+        String cacheKey = CacheConstants.CART_LIST + userId;
+        List<ShoppingCart> cachedList = redisCacheUtil.get(cacheKey, 
+            new com.fasterxml.jackson.core.type.TypeReference<List<ShoppingCart>>() {});
+        if (cachedList != null) {
+            return cachedList;
         }
 
         LambdaQueryWrapper<ShoppingCart> wrapper = new LambdaQueryWrapper<>();
@@ -81,7 +95,8 @@ public class CartServiceImpl implements CartService {
                 cart.setProductImage(product.getProductImage());
             }
         }
-        
+
+        redisCacheUtil.set(cacheKey, cartList, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
         return cartList;
     }
 
@@ -104,21 +119,24 @@ public class CartServiceImpl implements CartService {
         cart.setProductNum(num);
         cart.setUpdateTime(LocalDateTime.now());
         shoppingCartMapper.updateById(cart);
+        deleteCartCache(userId);
     }
 
     @Override
     public void deleteCart(List<Long> cartIds, Long userId) {
-        if (cartIds == null || cartIds.isEmpty()) {
-            throw new BusinessException(ResultCode.ERROR, "请选择要删除的商品");
-        }
-
-        for (Long cartId : cartIds) {
-            ShoppingCart cart = shoppingCartMapper.selectById(cartId);
-            if (cart != null && cart.getUserId().equals(userId)) {
-                cart.setIsDeleted(1);
-                cart.setUpdateTime(LocalDateTime.now());
-                shoppingCartMapper.updateById(cart);
+        if (cartIds != null && !cartIds.isEmpty()) {
+            for (Long cartId : cartIds) {
+                LambdaQueryWrapper<ShoppingCart> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(ShoppingCart::getCartId, cartId);
+                wrapper.eq(ShoppingCart::getUserId, userId);
+                
+                shoppingCartMapper.delete(wrapper);
             }
         }
+        deleteCartCache(userId);
+    }
+
+    private void deleteCartCache(Long userId) {
+        redisCacheUtil.delete(CacheConstants.CART_LIST + userId);
     }
 }

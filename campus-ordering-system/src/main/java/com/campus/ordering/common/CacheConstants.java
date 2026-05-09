@@ -30,6 +30,12 @@ public class CacheConstants {
 
     public static final String SYS_CONFIG_VALUE = CACHE_NAME + "sys:config:value:";
 
+    public static final String USER_LIST = CACHE_NAME + "user:list:";
+
+    public static final String USER_DETAIL = CACHE_NAME + "user:detail:";
+
+    public static final String CART_LIST = CACHE_NAME + "cart:list:";
+
     private CacheConstants() {
     }
 }

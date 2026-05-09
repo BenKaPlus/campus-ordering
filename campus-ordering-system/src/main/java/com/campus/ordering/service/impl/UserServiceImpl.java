@@ -3,16 +3,19 @@ package com.campus.ordering.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campus.ordering.common.CacheConstants;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.entity.SysUser;
 import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.mapper.SysUserMapper;
 import com.campus.ordering.service.UserService;
+import com.campus.ordering.utils.RedisCacheUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -23,8 +26,17 @@ public class UserServiceImpl implements UserService {
     @Resource
     private PasswordEncoder passwordEncoder;
 
+    @Resource
+    private RedisCacheUtil redisCacheUtil;
+
     @Override
     public IPage<SysUser> getUserList(String keyword, Integer userType, Integer page, Integer size) {
+        String cacheKey = CacheConstants.USER_LIST + keyword + ":" + userType + ":" + page + ":" + size;
+        IPage<SysUser> cachedPage = redisCacheUtil.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<Page<SysUser>>() {});
+        if (cachedPage != null) {
+            return cachedPage;
+        }
+
         Page<SysUser> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isEmpty()) {
@@ -37,7 +49,9 @@ public class UserServiceImpl implements UserService {
         }
         wrapper.eq(SysUser::getIsDeleted, 0)
                .orderByDesc(SysUser::getCreateTime);
-        return sysUserMapper.selectPage(pageParam, wrapper);
+        IPage<SysUser> result = sysUserMapper.selectPage(pageParam, wrapper);
+        redisCacheUtil.set(cacheKey, result, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        return result;
     }
 
     @Override
@@ -49,6 +63,7 @@ public class UserServiceImpl implements UserService {
         }
         user.setStatus(status);
         sysUserMapper.updateById(user);
+        deleteCache();
     }
 
     @Override
@@ -61,6 +76,7 @@ public class UserServiceImpl implements UserService {
         // 重置为默认密码 123456
         user.setPassword(passwordEncoder.encode("123456"));
         sysUserMapper.updateById(user);
+        deleteCache();
     }
 
     @Override
@@ -73,5 +89,11 @@ public class UserServiceImpl implements UserService {
         existUser.setUserName(user.getUserName());
         existUser.setPhone(user.getPhone());
         sysUserMapper.updateById(existUser);
+        deleteCache();
+    }
+
+    private void deleteCache() {
+        redisCacheUtil.deleteByPattern(CacheConstants.USER_LIST + "*");
+        redisCacheUtil.deleteByPattern(CacheConstants.USER_DETAIL + "*");
     }
 }

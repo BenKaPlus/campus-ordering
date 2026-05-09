@@ -4,9 +4,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.dto.OrderCreateDTO;
+import com.campus.ordering.dto.StudentInfoUpdateDTO;
 import com.campus.ordering.entity.OrderInfo;
 import com.campus.ordering.entity.ShoppingCart;
+import com.campus.ordering.entity.StudentInfo;
 import com.campus.ordering.entity.UserAddress;
+import com.campus.ordering.service.StudentInfoService;
 import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.security.JwtTokenUtil;
 import com.campus.ordering.service.*;
@@ -36,6 +39,8 @@ public class StudentController {
     private PayService payService;
     @Resource
     private UserAddressService addressService;
+    @Resource
+    private StudentInfoService studentInfoService;
 
     // ==================== 购物车接口 ====================
     @PostMapping("/cart/add")
@@ -62,7 +67,7 @@ public class StudentController {
         return Result.success();
     }
 
-    @DeleteMapping("/cart/delete")
+    @PostMapping("/cart/delete")
     @ApiOperation("删除购物车商品")
     public Result<Void> deleteCart(@RequestBody List<Long> cartIds, HttpServletRequest request) {
         Long userId = getUserId(request);
@@ -157,6 +162,22 @@ public class StudentController {
     public Result<Void> setDefaultAddress(@PathVariable Long addressId, HttpServletRequest request) {
         Long userId = getUserId(request);
         addressService.setDefaultAddress(addressId, userId);
+        return Result.success();
+    }
+
+    // ==================== 个人中心接口 ====================
+    @GetMapping("/info")
+    @ApiOperation("获取个人信息")
+    public Result<StudentInfo> getStudentInfo(HttpServletRequest request) {
+        Long userId = getUserId(request);
+        return Result.success(studentInfoService.getStudentInfo(userId));
+    }
+
+    @PutMapping("/info/update")
+    @ApiOperation("更新个人信息")
+    public Result<Void> updateStudentInfo(@RequestBody StudentInfoUpdateDTO dto, HttpServletRequest request) {
+        Long userId = getUserId(request);
+        studentInfoService.updateStudentInfo(userId, dto);
         return Result.success();
     }
 

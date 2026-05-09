@@ -145,21 +145,34 @@ public class ProductServiceImpl implements ProductService {
     public IPage<ProductInfo> searchProduct(String keyword, Long shopId, Integer page, Integer size) {
         String cacheKey = CacheConstants.SEARCH_PRODUCT + keyword + ":" + shopId + ":" + page + ":" + size;
         IPage<ProductInfo> cachedPage = redisCacheUtil.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<Page<ProductInfo>>() {});
+        
+        IPage<ProductInfo> result;
         if (cachedPage != null) {
-            return cachedPage;
+            result = cachedPage;
+        } else {
+            Page<ProductInfo> productPage = new Page<>(page, size);
+            LambdaQueryWrapper<ProductInfo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(ProductInfo::getIsDeleted, 0)
+                    .eq(ProductInfo::getProductStatus, 1)
+                    .eq(shopId != null, ProductInfo::getShopId, shopId)
+                    .and(StringUtils.hasText(keyword), w ->
+                        w.like(ProductInfo::getProductName, keyword)
+                         .or()
+                         .like(ProductInfo::getProductDesc, keyword));
+            result = productInfoMapper.selectPage(productPage, wrapper);
+            redisCacheUtil.set(cacheKey, result, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
         }
-
-        Page<ProductInfo> productPage = new Page<>(page, size);
-        LambdaQueryWrapper<ProductInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProductInfo::getShopId, shopId)
-                .eq(ProductInfo::getIsDeleted, 0)
-                .eq(ProductInfo::getProductStatus, 1)
-                .and(StringUtils.hasText(keyword), w ->
-                    w.like(ProductInfo::getProductName, keyword)
-                     .or()
-                     .like(ProductInfo::getProductDesc, keyword));
-        IPage<ProductInfo> result = productInfoMapper.selectPage(productPage, wrapper);
-        redisCacheUtil.set(cacheKey, result, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
+        
+        // 为每个商品设置店铺名称（包括缓存数据）
+        for (ProductInfo product : result.getRecords()) {
+            if (product.getShopName() == null || product.getShopName().isEmpty()) {
+                ShopInfo shop = shopInfoMapper.selectById(product.getShopId());
+                if (shop != null) {
+                    product.setShopName(shop.getShopName());
+                }
+            }
+        }
+        
         return result;
     }
 

@@ -22,7 +22,11 @@ export function getProductDetail(productId) {
   return request({ url: '/common/product/detail/' + productId, method: 'get' })
 }
 export function searchProduct(keyword, shopId, params) {
-  return request({ url: '/common/product/search', method: 'get', params: { keyword, shopId, ...params } })
+  const query = { keyword, ...params }
+  if (shopId !== null && shopId !== undefined) {
+    query.shopId = shopId
+  }
+  return request({ url: '/common/product/search', method: 'get', params: query })
 }
 
 // 文件上传
