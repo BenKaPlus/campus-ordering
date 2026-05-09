@@ -129,6 +129,13 @@ public class StudentController {
         return Result.success(orderService.getOrderDetail(orderId, userId));
     }
 
+    @GetMapping("/order/pay/info/{orderId}")
+    @ApiOperation("获取订单支付信息")
+    public Result<ShopPaymentDTO> getOrderPayInfo(@PathVariable Long orderId, HttpServletRequest request) {
+        Long userId = getUserId(request);
+        return Result.success(orderService.getOrderPaymentInfo(orderId, userId));
+    }
+
     @GetMapping("/order/pay/{orderNo}")
     @ApiOperation("获取微信支付参数")
     public Result<Object> getWxPayParams(@PathVariable String orderNo, HttpServletRequest request) {

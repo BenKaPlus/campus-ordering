@@ -33,6 +33,9 @@ export function getOrderList(params) {
 export function getOrderDetail(orderId) {
   return request({ url: '/student/order/detail/' + orderId, method: 'get' })
 }
+export function getOrderPayInfo(orderId) {
+  return request({ url: '/student/order/pay/info/' + orderId, method: 'get' })
+}
 export function getWxPayParams(orderNo) {
   return request({ url: '/student/order/pay/' + orderNo, method: 'get' })
 }

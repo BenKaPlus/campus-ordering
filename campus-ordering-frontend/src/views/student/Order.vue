@@ -99,7 +99,7 @@
           <template slot-scope="scope">
             <el-button type="text" size="small" @click="viewOrderDetail(scope.row.orderId)">查看详情</el-button>
             <el-button v-if="scope.row.orderStatus === 0" type="text" size="small" @click="cancelOrder(scope.row.orderId)">取消订单</el-button>
-            <el-button v-if="scope.row.orderStatus === 0" type="primary" size="small" @click="goPay(scope.row.orderNo)">去支付</el-button>
+            <el-button v-if="scope.row.orderStatus === 0" type="primary" size="small" @click="goPay(scope.row.orderId)">去支付</el-button>
             <el-button v-if="scope.row.orderStatus === 4" type="text" size="small" @click="confirmReceive(scope.row.orderId)">确认收货</el-button>
           </template>
         </el-table-column>
@@ -142,7 +142,7 @@
       </div>
       <div v-if="orderDetail.orderId" class="drawer-footer">
         <el-button v-if="orderDetail.orderStatus === 0" type="text" size="small" @click="cancelOrder(orderDetail.orderId)">取消订单</el-button>
-        <el-button v-if="orderDetail.orderStatus === 0" type="primary" size="small" @click="goPay(orderDetail.orderNo)">去支付</el-button>
+        <el-button v-if="orderDetail.orderStatus === 0" type="primary" size="small" @click="goPay(orderDetail.orderId)">去支付</el-button>
         <el-button v-if="orderDetail.orderStatus === 4" type="primary" size="small" @click="confirmReceive(orderDetail.orderId)">确认收货</el-button>
       </div>
     </el-drawer>
@@ -153,13 +153,29 @@
         <p class="qrcode-amount">应付：¥{{ currentShopPayment.payAmount }}</p>
         <img :src="currentShopPayment.qrcodeUrl" class="qrcode-image">
         <p class="qrcode-tip">请使用{{ currentShopPayment.payType === 'wx' ? '微信' : '支付宝' }}扫码支付</p>
+        <div class="qrcode-actions">
+          <el-button type="success" @click="confirmPaid">已完成支付</el-button>
+        </div>
+      </div>
+    </el-dialog>
+
+    <el-dialog :visible.sync="payTypeDialogVisible" title="选择支付方式" width="400px" center>
+      <div class="pay-type-content">
+        <el-radio-group v-model="selectedPayType">
+          <el-radio label="wx" :disabled="!currentOrder?.wxQrcode">微信支付</el-radio>
+          <el-radio label="ali" :disabled="!currentOrder?.aliQrcode">支付宝</el-radio>
+        </el-radio-group>
+        <div class="pay-dialog-actions">
+          <el-button @click="payTypeDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="showQrcode">确认支付</el-button>
+        </div>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { getOrderList, cancelOrder, getOrderDetail, getWxPayParams, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList } from '@/api/student'
+import { getOrderList, cancelOrder, getOrderDetail, getWxPayParams, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList, getOrderPayInfo } from '@/api/student'
 
 export default {
   name: 'StudentOrder',
@@ -183,14 +199,15 @@ export default {
       selectedAddressId: null,
       groupedCartList: [],
       qrcodeDialogVisible: false,
+      payTypeDialogVisible: false,
       currentShopPayment: {
         shopName: '',
         payAmount: 0,
         qrcodeUrl: '',
         payType: ''
       },
-      paymentList: [],
-      currentPaymentIndex: 0
+      currentOrder: null,
+      selectedPayType: 'wx'
     }
   },
   computed: {
@@ -310,11 +327,31 @@ export default {
         this.getOrderList()
       })
     },
-    async goPay(orderNo) {
-      const res = await getWxPayParams(orderNo)
-      if (res.code === 200) {
-        this.$message.info('支付功能开发中')
+    async goPay(orderId) {
+      const res = await getOrderPayInfo(orderId)
+      if (res.code === 200 && res.data) {
+        const payment = res.data
+        if (!payment.wxQrcode && !payment.aliQrcode) {
+          this.$message.error('该店铺未设置收款码')
+          return
+        }
+        this.currentOrder = payment
+        this.selectedPayType = payment.wxQrcode ? 'wx' : 'ali'
+        this.payTypeDialogVisible = true
       }
+    },
+    showQrcode() {
+      if (!this.currentOrder) return
+      this.payTypeDialogVisible = false
+      this.currentShopPayment = {
+        orderId: this.currentOrder.orderId,
+        orderNo: this.currentOrder.orderNo,
+        shopName: this.currentOrder.shopName,
+        payAmount: this.currentOrder.payAmount,
+        qrcodeUrl: this.selectedPayType === 'wx' ? this.currentOrder.wxQrcode : this.currentOrder.aliQrcode,
+        payType: this.selectedPayType
+      }
+      this.qrcodeDialogVisible = true
     },
     async confirmReceive(orderId) {
       this.$confirm('确定已收到商品吗？', '提示', {
@@ -366,15 +403,35 @@ export default {
     showNextPayment() {
       if (this.currentPaymentIndex < this.paymentList.length) {
         const payment = this.paymentList[this.currentPaymentIndex]
+        const payType = payment.payType === 1 ? 'wx' : 'ali'
         this.currentShopPayment = {
+          orderId: payment.orderId,
+          orderNo: payment.orderNo,
           shopName: payment.shopName,
           payAmount: payment.payAmount,
-          qrcodeUrl: payment.payType === 1 ? payment.wxQrcode : payment.aliQrcode,
-          payType: payment.payType === 1 ? 'wx' : 'ali'
+          qrcodeUrl: payType === 'wx' ? payment.wxQrcode : payment.aliQrcode,
+          payType: payType
         }
         this.qrcodeDialogVisible = true
       } else {
         this.$message.success('所有订单已创建，请完成支付')
+        this.$router.push('/order')
+      }
+    },
+    async confirmPaid() {
+      const orderId = this.currentShopPayment.orderId
+      await updateOrderStatus(orderId, 1)
+      this.qrcodeDialogVisible = false
+      this.$message.success('支付成功')
+      
+      if (this.paymentList && this.paymentList.length > 0) {
+        this.currentPaymentIndex++
+        if (this.currentPaymentIndex < this.paymentList.length) {
+          this.showNextPayment()
+        } else {
+          this.$router.push('/order')
+        }
+      } else {
         this.$router.push('/order')
       }
     }
@@ -516,5 +573,23 @@ export default {
 .qrcode-tip {
   color: #909399;
   font-size: 14px;
+}
+.qrcode-actions {
+  margin-top: 15px;
+  text-align: center;
+}
+.pay-type-content {
+  text-align: center;
+  padding: 20px 0;
+}
+.pay-type-content .el-radio-group {
+  margin-bottom: 20px;
+}
+.pay-type-content .el-radio {
+  margin: 0 20px;
+  font-size: 16px;
+}
+.pay-dialog-actions {
+  text-align: right;
 }
 </style>

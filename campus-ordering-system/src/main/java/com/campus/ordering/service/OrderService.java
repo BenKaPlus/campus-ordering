@@ -42,6 +42,11 @@ public interface OrderService {
     OrderInfo getOrderDetail(Long orderId, Long userId);
 
     /**
+     * 获取订单支付信息
+     */
+    ShopPaymentDTO getOrderPaymentInfo(Long orderId, Long userId);
+
+    /**
      * 商家端获取订单列表
      */
     IPage<OrderInfo> getMerchantOrderList(Long shopId, Integer status, Integer page, Integer size);

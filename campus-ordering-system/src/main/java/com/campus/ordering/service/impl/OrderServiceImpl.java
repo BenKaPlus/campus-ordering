@@ -396,8 +396,38 @@ public class OrderServiceImpl implements OrderService {
                    .eq(OrderItem::getIsDeleted, 0);
         List<OrderItem> items = orderItemMapper.selectList(itemWrapper);
         order.setItemList(items);
-        
+
         return order;
+    }
+
+    @Override
+    public ShopPaymentDTO getOrderPaymentInfo(Long orderId, Long userId) {
+        OrderInfo order = orderInfoMapper.selectById(orderId);
+        if (order == null) {
+            throw new BusinessException(ResultCode.ERROR, "订单不存在");
+        }
+        if (!order.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.ERROR, "无权查看该订单");
+        }
+        if (order.getOrderStatus() != 0) {
+            throw new BusinessException(ResultCode.ERROR, "该订单不可支付");
+        }
+
+        ShopInfo shop = shopInfoMapper.selectById(order.getShopId());
+        if (shop == null) {
+            throw new BusinessException(ResultCode.ERROR, "店铺不存在");
+        }
+
+        ShopPaymentDTO paymentDTO = new ShopPaymentDTO();
+        paymentDTO.setShopId(shop.getShopId());
+        paymentDTO.setShopName(shop.getShopName());
+        paymentDTO.setOrderId(order.getOrderId());
+        paymentDTO.setOrderNo(order.getOrderNo());
+        paymentDTO.setPayAmount(order.getPayAmount());
+        paymentDTO.setPayType(order.getPayType());
+        paymentDTO.setWxQrcode(shop.getWxQrcode());
+        paymentDTO.setAliQrcode(shop.getAliQrcode());
+        return paymentDTO;
     }
 
     @Override
