@@ -719,4 +719,27 @@ public class OrderServiceImpl implements OrderService {
         result.put("monthRevenue", monthRevenue);
         return result;
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteOrders(List<Long> orderIds, Long userId) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择要删除的订单");
+        }
+
+        for (Long orderId : orderIds) {
+            OrderInfo order = orderInfoMapper.selectById(orderId);
+            checkOrderOwner(order, userId);
+
+            // 待支付、待接单、已完成、已取消的订单可以删除
+            // 配送中不能删除（状态2备餐中、3待出餐、4配送中）
+            if (order.getOrderStatus() == 2 || order.getOrderStatus() == 3 || order.getOrderStatus() == 4) {
+                throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "配送中的订单无法删除");
+            }
+
+            // 逻辑删除
+            order.setIsDeleted(1);
+            orderInfoMapper.updateById(order);
+        }
+    }
 }

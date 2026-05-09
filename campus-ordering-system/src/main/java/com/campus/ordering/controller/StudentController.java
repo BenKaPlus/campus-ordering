@@ -110,6 +110,14 @@ public class StudentController {
         return Result.success();
     }
 
+    @PostMapping("/order/delete")
+    @ApiOperation("删除订单（单个或批量）")
+    public Result<Void> deleteOrders(@RequestBody List<Long> orderIds, HttpServletRequest request) {
+        Long userId = getUserId(request);
+        orderService.deleteOrders(orderIds, userId);
+        return Result.success();
+    }
+
     @GetMapping("/order/list")
     @ApiOperation("获取订单列表")
     public Result<IPage<OrderInfo>> getOrderList(

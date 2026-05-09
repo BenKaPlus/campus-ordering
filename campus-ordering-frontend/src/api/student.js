@@ -27,6 +27,9 @@ export function getSettleInfo(cartIds) {
 export function cancelOrder(orderId) {
   return request({ url: '/student/order/cancel/' + orderId, method: 'put' })
 }
+export function deleteOrders(orderIds) {
+  return request({ url: '/student/order/delete', method: 'post', data: orderIds })
+}
 export function getOrderList(params) {
   return request({ url: '/student/order/list', method: 'get', params })
 }

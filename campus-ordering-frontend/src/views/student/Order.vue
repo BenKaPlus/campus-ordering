@@ -56,25 +56,39 @@
 
     <el-card v-else>
       <div slot="header" class="header-wrapper">
-        <el-tabs v-model="activeTab" @tab-click="getOrderList">
-          <el-tab-pane label="全部" name="all"></el-tab-pane>
-          <el-tab-pane label="待支付" name="0"></el-tab-pane>
-          <el-tab-pane label="待接单" name="1"></el-tab-pane>
-          <el-tab-pane label="配送中" name="4"></el-tab-pane>
-          <el-tab-pane label="已完成" name="5"></el-tab-pane>
-        </el-tabs>
-        <el-input
-          v-model="keyword"
-          placeholder="搜索订单号"
-          style="width: 200px;"
-          clearable
-          @clear="handleSearch"
-          @keyup.enter.native="handleSearch"
-        >
-          <el-button slot="append" icon="el-icon-search" @click="handleSearch"></el-button>
-        </el-input>
+        <div class="header-left">
+          <el-tabs v-model="activeTab" @tab-click="getOrderList">
+            <el-tab-pane label="全部" name="all"></el-tab-pane>
+            <el-tab-pane label="待支付" name="0"></el-tab-pane>
+            <el-tab-pane label="待接单" name="1"></el-tab-pane>
+            <el-tab-pane label="待备餐" name="2"></el-tab-pane>
+            <el-tab-pane label="待出餐" name="3"></el-tab-pane>
+            <el-tab-pane label="配送中" name="4"></el-tab-pane>
+            <el-tab-pane label="已完成" name="5"></el-tab-pane>
+            <el-tab-pane label="已取消" name="6"></el-tab-pane>
+          </el-tabs>
+        </div>
+        <div class="header-right">
+          <el-button
+            type="danger"
+            size="small"
+            :disabled="selectedOrderIds.length === 0"
+            @click="handleBatchDelete"
+          >批量删除</el-button>
+          <el-input
+            v-model="keyword"
+            placeholder="搜索订单号"
+            style="width: 200px;"
+            clearable
+            @clear="handleSearch"
+            @keyup.enter.native="handleSearch"
+          >
+            <el-button slot="append" icon="el-icon-search" @click="handleSearch"></el-button>
+          </el-input>
+        </div>
       </div>
-      <el-table :data="orderList" style="width: 100%;" v-loading="loading">
+      <el-table :data="orderList" style="width: 100%;" v-loading="loading" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55"></el-table-column>
         <el-table-column prop="orderNo" label="订单号" width="180"></el-table-column>
         <el-table-column label="商品信息" min-width="200">
           <template slot-scope="scope">
@@ -95,12 +109,18 @@
         <el-table-column prop="createTime" label="下单时间" width="160">
           <template slot-scope="scope">{{ scope.row.createTime | formatDate }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200">
+        <el-table-column label="操作" width="220">
           <template slot-scope="scope">
             <el-button type="text" size="small" @click="viewOrderDetail(scope.row.orderId)">查看详情</el-button>
             <el-button v-if="scope.row.orderStatus === 0" type="text" size="small" @click="cancelOrder(scope.row.orderId)">取消订单</el-button>
             <el-button v-if="scope.row.orderStatus === 0" type="primary" size="small" @click="goPay(scope.row.orderId)">去支付</el-button>
             <el-button v-if="scope.row.orderStatus === 4" type="text" size="small" @click="confirmReceive(scope.row.orderId)">确认收货</el-button>
+            <el-button
+              v-if="scope.row.orderStatus === 0 || scope.row.orderStatus === 1 || scope.row.orderStatus === 5 || scope.row.orderStatus === 6"
+              type="text"
+              size="small"
+              @click="handleDelete(scope.row.orderId)"
+            >删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -175,7 +195,7 @@
 </template>
 
 <script>
-import { getOrderList, cancelOrder, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList, getOrderPayInfo } from '@/api/student'
+import { getOrderList, cancelOrder, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList, getOrderPayInfo, deleteOrders } from '@/api/student'
 
 export default {
   name: 'StudentOrder',
@@ -207,7 +227,8 @@ export default {
         payType: ''
       },
       currentOrder: null,
-      selectedPayType: 'wx'
+      selectedPayType: 'wx',
+      selectedOrderIds: []
     }
   },
   computed: {
@@ -229,6 +250,32 @@ export default {
     window.removeEventListener('refreshOrder', this.getOrderList)
   },
   methods: {
+    handleSelectionChange(selection) {
+      this.selectedOrderIds = selection.map(item => item.orderId)
+    },
+    async handleDelete(orderId) {
+      this.$confirm('确定要删除该订单吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        await deleteOrders([orderId])
+        this.$message.success('删除成功')
+        this.getOrderList()
+      }).catch(() => {})
+    },
+    async handleBatchDelete() {
+      this.$confirm(`确定要删除选中的 ${this.selectedOrderIds.length} 个订单吗？`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        await deleteOrders(this.selectedOrderIds)
+        this.$message.success('批量删除成功')
+        this.selectedOrderIds = []
+        this.getOrderList()
+      }).catch(() => {})
+    },
     async getOrderList() {
       this.loading = true
       const params = { page: this.page, size: this.size }
@@ -302,7 +349,7 @@ export default {
       this.groupedCartList = Array.from(shopMap.values())
     },
     getStatusType(status) {
-      const typeMap = { 0: 'info', 1: 'warning', 2: 'primary', 4: 'warning', 5: 'success', 6: 'info' }
+      const typeMap = { 0: 'info', 1: 'warning', 2: 'primary', 3: 'warning', 4: 'warning', 5: 'success', 6: 'info' }
       return typeMap[status] || 'info'
     },
     getStatusText(status) {
@@ -516,6 +563,14 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.header-left {
+  flex: 1;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .order-item {
   display: flex;

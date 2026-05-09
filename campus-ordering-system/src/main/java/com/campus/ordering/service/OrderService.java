@@ -80,4 +80,9 @@ public interface OrderService {
      * 获取店铺统计数据
      */
     Object getShopStatistics(Long shopId);
+
+    /**
+     * 学生端删除订单（单个或批量）
+     */
+    void deleteOrders(List<Long> orderIds, Long userId);
 }
