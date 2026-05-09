@@ -122,7 +122,7 @@ export default {
         this.getShopDetail()
       }
     },
-    beforeUpload(file, type) {
+    beforeUpload(file) {
       const isImage = file.type.startsWith('image/')
       const isLt5M = file.size / 1024 / 1024 < 5
       if (!isImage) {
