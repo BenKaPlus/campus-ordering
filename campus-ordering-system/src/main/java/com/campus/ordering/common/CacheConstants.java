@@ -26,6 +26,10 @@ public class CacheConstants {
 
     public static final long CACHE_TIME_1_DAY = 60 * 24;
 
+    public static final String SYS_CONFIG_ALL = CACHE_NAME + "sys:config:all";
+
+    public static final String SYS_CONFIG_VALUE = CACHE_NAME + "sys:config:value:";
+
     private CacheConstants() {
     }
 }
