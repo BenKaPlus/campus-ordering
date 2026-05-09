@@ -6,6 +6,7 @@ import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.dto.BatchOrderCreateDTO;
 import com.campus.ordering.dto.CartSettleDTO;
 import com.campus.ordering.dto.OrderCreateDTO;
+import com.campus.ordering.dto.OrderDeleteDTO;
 import com.campus.ordering.dto.ShopPaymentDTO;
 import com.campus.ordering.dto.StudentInfoUpdateDTO;
 import com.campus.ordering.entity.OrderInfo;
@@ -112,9 +113,9 @@ public class StudentController {
 
     @PostMapping("/order/delete")
     @ApiOperation("删除订单（单个或批量）")
-    public Result<Void> deleteOrders(@RequestBody List<Long> orderIds, HttpServletRequest request) {
+    public Result<Void> deleteOrders(@RequestBody OrderDeleteDTO deleteDTO, HttpServletRequest request) {
         Long userId = getUserId(request);
-        orderService.deleteOrders(orderIds, userId);
+        orderService.deleteOrders(deleteDTO.getOrderIds(), userId);
         return Result.success();
     }
 

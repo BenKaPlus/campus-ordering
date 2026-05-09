@@ -270,10 +270,16 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(async () => {
-        await deleteOrders(this.selectedOrderIds)
-        this.$message.success('批量删除成功')
-        this.selectedOrderIds = []
-        this.getOrderList()
+        try {
+          await deleteOrders(this.selectedOrderIds)
+          this.$message.success('批量删除成功')
+          this.selectedOrderIds = []
+          this.activeTab = 'all'
+          this.page = 1
+          this.getOrderList()
+        } catch (error) {
+          console.error('删除失败:', error)
+        }
       }).catch(() => {})
     },
     async getOrderList() {

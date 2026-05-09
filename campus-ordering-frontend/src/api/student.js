@@ -28,7 +28,7 @@ export function cancelOrder(orderId) {
   return request({ url: '/student/order/cancel/' + orderId, method: 'put' })
 }
 export function deleteOrders(orderIds) {
-  return request({ url: '/student/order/delete', method: 'post', data: orderIds })
+  return request({ url: '/student/order/delete', method: 'post', data: { orderIds }, headers: { 'Content-Type': 'application/json' } })
 }
 export function getOrderList(params) {
   return request({ url: '/student/order/list', method: 'get', params })
