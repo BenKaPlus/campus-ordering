@@ -147,7 +147,7 @@
       </div>
     </el-drawer>
 
-    <el-dialog :visible.sync="qrcodeDialogVisible" title="扫码支付" width="300px" center>
+    <el-dialog :visible.sync="qrcodeDialogVisible" title="扫码支付" width="500px" center>
       <div class="qrcode-content">
         <p class="qrcode-shop">{{ currentShopPayment.shopName }}</p>
         <p class="qrcode-amount">应付：¥{{ currentShopPayment.payAmount }}</p>
@@ -369,8 +369,8 @@ export default {
         this.currentShopPayment = {
           shopName: payment.shopName,
           payAmount: payment.payAmount,
-          qrcodeUrl: payment.payType === 'wx' ? payment.wxQrcode : payment.aliQrcode,
-          payType: payment.payType
+          qrcodeUrl: payment.payType === 1 ? payment.wxQrcode : payment.aliQrcode,
+          payType: payment.payType === 1 ? 'wx' : 'ali'
         }
         this.qrcodeDialogVisible = true
       } else {
@@ -509,8 +509,8 @@ export default {
   margin-bottom: 15px;
 }
 .qrcode-image {
-  width: 200px;
-  height: 200px;
+  width: 400px;
+  height: 500px;
   margin-bottom: 15px;
 }
 .qrcode-tip {

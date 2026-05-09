@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.ordering.mapper.OrderItemMapper">
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO order_item (order_id, order_no, product_id, product_name, product_image, spec_id, spec_name, product_price, product_num, total_price)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.orderId}, #{item.orderNo}, #{item.productId}, #{item.productName}, #{item.productImage}, #{item.specId}, #{item.specName}, #{item.productPrice}, #{item.productNum}, #{item.totalPrice})
+        </foreach>
+    </insert>
+
+</mapper>
