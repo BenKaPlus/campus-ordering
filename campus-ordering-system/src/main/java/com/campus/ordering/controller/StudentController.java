@@ -13,7 +13,9 @@ import com.campus.ordering.dto.StudentInfoUpdateDTO;
 import com.campus.ordering.entity.OrderInfo;
 import com.campus.ordering.entity.ShoppingCart;
 import com.campus.ordering.entity.StudentInfo;
+import com.campus.ordering.entity.SysUser;
 import com.campus.ordering.entity.UserAddress;
+import com.campus.ordering.mapper.SysUserMapper;
 import com.campus.ordering.service.StudentInfoService;
 import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.security.JwtTokenUtil;
@@ -49,6 +51,8 @@ public class StudentController {
     private UserAddressService addressService;
     @Resource
     private StudentInfoService studentInfoService;
+    @Resource
+    private SysUserMapper sysUserMapper;
 
     // ==================== 购物车接口 ====================
     @PostMapping("/cart/add")
@@ -155,6 +159,16 @@ public class StudentController {
     public Result<Object> getWxPayParams(@PathVariable String orderNo, HttpServletRequest request) {
         Long userId = getUserId(request);
         return Result.success(payService.createWxPay(orderNo, userId));
+    }
+
+    @PutMapping("/order/status/{orderId}")
+    @ApiOperation("更新订单状态")
+    public Result<Void> updateOrderStatus(@PathVariable Long orderId, @RequestParam Integer status, HttpServletRequest request) {
+        log.info("学生端更新订单状态，orderId: {}, status: {}", orderId, status);
+        Long userId = getUserId(request);
+        SysUser user = sysUserMapper.selectById(userId);
+        orderService.updateOrderStatus(orderId, status, userId, user.getUserName());
+        return Result.success();
     }
 
     // ==================== 收货地址接口 ====================
