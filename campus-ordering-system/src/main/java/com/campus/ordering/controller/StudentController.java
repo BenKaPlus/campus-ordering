@@ -1,5 +1,6 @@
 package com.campus.ordering.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.common.ResultCode;
@@ -29,6 +30,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/student")
 @Api(tags = "学生端接口")
@@ -114,8 +116,11 @@ public class StudentController {
     @PostMapping("/order/delete")
     @ApiOperation("删除订单（单个或批量）")
     public Result<Void> deleteOrders(@RequestBody OrderDeleteDTO deleteDTO, HttpServletRequest request) {
+        log.info("收到删除订单请求，deleteDTO: {}", deleteDTO);
         Long userId = getUserId(request);
+        log.info("用户ID: {}, 订单ID列表: {}", userId, deleteDTO.getOrderIds());
         orderService.deleteOrders(deleteDTO.getOrderIds(), userId);
+        log.info("删除订单成功");
         return Result.success();
     }
 

@@ -723,12 +723,15 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteOrders(List<Long> orderIds, Long userId) {
+        log.info("deleteOrders 被调用，orderIds: {}, userId: {}", orderIds, userId);
         if (orderIds == null || orderIds.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "请选择要删除的订单");
         }
 
         for (Long orderId : orderIds) {
+            log.info("正在处理订单ID: {}", orderId);
             OrderInfo order = orderInfoMapper.selectById(orderId);
+            log.info("查询到的订单信息: {}", order);
             checkOrderOwner(order, userId);
 
             // 待支付、待接单、已完成、已取消的订单可以删除
@@ -737,9 +740,16 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "配送中的订单无法删除");
             }
 
-            // 逻辑删除
-            order.setIsDeleted(1);
-            orderInfoMapper.updateById(order);
+            // 使用 LambdaUpdateWrapper 来确保更新成功
+            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<OrderInfo> updateWrapper = 
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
+            updateWrapper.eq(OrderInfo::getOrderId, orderId)
+                        .eq(OrderInfo::getUserId, userId)
+                        .set(OrderInfo::getIsDeleted, 1);
+            
+            int updateCount = orderInfoMapper.update(null, updateWrapper);
+            log.info("订单更新结果: updateCount = {}", updateCount);
         }
+        log.info("deleteOrders 执行完成");
     }
 }

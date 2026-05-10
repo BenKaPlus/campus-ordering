@@ -41,7 +41,7 @@
               </el-radio-group>
             </div>
             <div class="shop-total">
-              <span>配送费：¥{{ shop.deliveryFee || 0 }}</span>
+              <span>配送费：¥{{ (shop.deliveryFee || 0).toFixed(2) }}</span>
               <span class="shop-amount">店铺合计：¥{{ shop.shopTotal.toFixed(2) }}</span>
             </div>
           </div>
@@ -195,7 +195,7 @@
 </template>
 
 <script>
-import { getOrderList, cancelOrder, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList, getOrderPayInfo, deleteOrders } from '@/api/student'
+import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList, getOrderPayInfo, deleteOrders } from '@/api/student'
 
 export default {
   name: 'StudentOrder',
@@ -228,7 +228,9 @@ export default {
       },
       currentOrder: null,
       selectedPayType: 'wx',
-      selectedOrderIds: []
+      selectedOrderIds: [],
+      paymentList: [],
+      currentPaymentIndex: 0
     }
   },
   computed: {
@@ -254,24 +256,34 @@ export default {
       this.selectedOrderIds = selection.map(item => item.orderId)
     },
     async handleDelete(orderId) {
+      console.log('handleDelete 被调用，orderId:', orderId)
       this.$confirm('确定要删除该订单吗？', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(async () => {
-        await deleteOrders([orderId])
-        this.$message.success('删除成功')
-        this.getOrderList()
+        try {
+          console.log('开始调用 deleteOrders API，参数:', [orderId])
+          const res = await deleteOrders([orderId])
+          console.log('deleteOrders API 响应:', res)
+          this.$message.success('删除成功')
+          this.getOrderList()
+        } catch (error) {
+          console.error('删除失败:', error)
+        }
       }).catch(() => {})
     },
     async handleBatchDelete() {
+      console.log('handleBatchDelete 被调用，selectedOrderIds:', this.selectedOrderIds)
       this.$confirm(`确定要删除选中的 ${this.selectedOrderIds.length} 个订单吗？`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(async () => {
         try {
-          await deleteOrders(this.selectedOrderIds)
+          console.log('开始调用 deleteOrders API，参数:', this.selectedOrderIds)
+          const res = await deleteOrders(this.selectedOrderIds)
+          console.log('deleteOrders API 响应:', res)
           this.$message.success('批量删除成功')
           this.selectedOrderIds = []
           this.activeTab = 'all'
@@ -305,7 +317,9 @@ export default {
     async getSettleInfo(cartIds) {
       this.loading = true
       const validCartIds = cartIds.filter(id => Number.isInteger(id) && id > 0)
+      console.log('getSettleInfo 调用，validCartIds:', validCartIds)
       const res = await getSettleInfo(validCartIds)
+      console.log('getSettleInfo 响应:', res)
       if (res.code === 200 && res.data) {
         this.settleInfo = {
           cartList: res.data.cartList || [],
@@ -315,35 +329,36 @@ export default {
         if (this.settleInfo.defaultAddressId) {
           this.selectedAddressId = this.settleInfo.defaultAddressId
         }
-        if (this.settleInfo.cartList.length === 0 && validCartIds.length > 0) {
-          const cartRes = await getCartList()
-          if (cartRes.code === 200 && Array.isArray(cartRes.data)) {
-            this.settleInfo.cartList = cartRes.data.filter(item => validCartIds.includes(item.cartId))
-          }
-        }
+        console.log('settleInfo.cartList:', this.settleInfo.cartList)
         this.groupCartByShop()
       }
       this.loading = false
     },
     groupCartByShop() {
+      console.log('groupCartByShop 被调用，cartList:', this.settleInfo.cartList)
       const shopMap = new Map()
       for (const item of this.settleInfo.cartList) {
+        console.log('处理购物车项:', item)
         if (!shopMap.has(item.shopId)) {
-          shopMap.set(item.shopId, {
+          const shopData = {
             shopId: item.shopId,
             shopName: item.shopName || '店铺商品',
-            deliveryFee: item.deliveryFee || 0,
+            deliveryFee: Number(item.deliveryFee) || 0,
             items: [],
             selectedPayType: 'wx',
             wxQrcode: item.wxQrcode || '',
             aliQrcode: item.aliQrcode || ''
-          })
+          }
+          console.log('创建店铺数据:', shopData)
+          shopMap.set(item.shopId, shopData)
         }
         shopMap.get(item.shopId).items.push(item)
       }
       for (const shop of shopMap.values()) {
-        const productTotal = shop.items.reduce((sum, item) => sum + item.productPrice * item.productNum, 0)
-        shop.shopTotal = productTotal + (shop.deliveryFee || 0)
+        const productTotal = shop.items.reduce((sum, item) => sum + (Number(item.productPrice) * Number(item.productNum)), 0)
+        console.log('店铺:', shop.shopName, '商品总额:', productTotal, '配送费:', shop.deliveryFee)
+        shop.shopTotal = productTotal + shop.deliveryFee
+        console.log('店铺总金额:', shop.shopTotal)
         if (!shop.wxQrcode && !shop.aliQrcode) {
           shop.selectedPayType = ''
         } else if (!shop.wxQrcode) {
@@ -353,6 +368,7 @@ export default {
         }
       }
       this.groupedCartList = Array.from(shopMap.values())
+      console.log('groupedCartList:', this.groupedCartList)
     },
     getStatusType(status) {
       const typeMap = { 0: 'info', 1: 'warning', 2: 'primary', 3: 'warning', 4: 'warning', 5: 'success', 6: 'info' }
@@ -375,7 +391,7 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(async () => {
-        await cancelOrder(orderId)
+        await cancelOrderApi(orderId)
         this.$message.success('订单已取消')
         this.getOrderList()
       })
@@ -418,6 +434,7 @@ export default {
       })
     },
     async submitBatchOrder() {
+      console.log('submitBatchOrder 被调用')
       if (!this.selectedAddressId) {
         this.$message.error('请选择收货地址')
         return
@@ -443,19 +460,24 @@ export default {
           productNum: item.productNum
         }))
       }))
+      console.log('准备发送的 shopOrders:', shopOrders)
       const res = await createBatchOrder({
         addressId: this.selectedAddressId,
         shopOrders: shopOrders
       })
+      console.log('createBatchOrder 响应:', res)
       if (res.code === 200 && res.data) {
         this.paymentList = res.data
         this.currentPaymentIndex = 0
+        console.log('设置 paymentList:', this.paymentList)
         this.showNextPayment()
       }
     },
     showNextPayment() {
+      console.log('showNextPayment 被调用，currentPaymentIndex:', this.currentPaymentIndex, 'paymentList:', this.paymentList)
       if (this.currentPaymentIndex < this.paymentList.length) {
         const payment = this.paymentList[this.currentPaymentIndex]
+        console.log('当前支付信息:', payment)
         const payType = payment.payType === 1 ? 'wx' : 'ali'
         this.currentShopPayment = {
           orderId: payment.orderId,
@@ -465,6 +487,7 @@ export default {
           qrcodeUrl: payType === 'wx' ? payment.wxQrcode : payment.aliQrcode,
           payType: payType
         }
+        console.log('设置 currentShopPayment:', this.currentShopPayment)
         this.qrcodeDialogVisible = true
       } else {
         this.$message.success('所有订单已创建，请完成支付')
@@ -472,6 +495,7 @@ export default {
       }
     },
     async confirmPaid() {
+      console.log('confirmPaid 被调用，currentShopPayment:', this.currentShopPayment)
       const orderId = this.currentShopPayment.orderId
       await updateOrderStatus(orderId, 1)
       this.qrcodeDialogVisible = false
@@ -479,12 +503,16 @@ export default {
       
       if (this.paymentList && this.paymentList.length > 0) {
         this.currentPaymentIndex++
+        console.log('currentPaymentIndex 增加后:', this.currentPaymentIndex)
         if (this.currentPaymentIndex < this.paymentList.length) {
+          console.log('还有下一个店铺需要支付，调用 showNextPayment')
           this.showNextPayment()
         } else {
+          console.log('所有店铺支付完成，跳转到订单页面')
           this.$router.push('/order')
         }
       } else {
+        console.log('paymentList 为空，直接跳转到订单页面')
         this.$router.push('/order')
       }
     }

@@ -10,12 +10,15 @@ const service = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
+    console.log('发送请求:', config.url, config.method, config.data)
     if (store.getters.token) {
       config.headers['Authorization'] = 'Bearer ' + store.getters.token
+      console.log('添加了 Authorization 头')
     }
     return config
   },
   error => {
+    console.error('请求错误:', error)
     return Promise.reject(error)
   }
 )

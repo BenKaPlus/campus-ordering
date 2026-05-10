@@ -28,7 +28,10 @@ export function cancelOrder(orderId) {
   return request({ url: '/student/order/cancel/' + orderId, method: 'put' })
 }
 export function deleteOrders(orderIds) {
-  return request({ url: '/student/order/delete', method: 'post', data: { orderIds }, headers: { 'Content-Type': 'application/json' } })
+  console.log('deleteOrders API 函数被调用，orderIds:', orderIds)
+  const result = request({ url: '/student/order/delete', method: 'post', data: { orderIds } })
+  console.log('deleteOrders API 返回的 Promise:', result)
+  return result
 }
 export function getOrderList(params) {
   return request({ url: '/student/order/list', method: 'get', params })
