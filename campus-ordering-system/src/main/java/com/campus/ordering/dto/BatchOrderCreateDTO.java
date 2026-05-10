@@ -17,6 +17,9 @@ public class BatchOrderCreateDTO {
     @ApiModelProperty(value = "店铺订单列表", required = true)
     private List<ShopOrderDTO> shopOrders;
 
+    @ApiModelProperty(value = "购物车ID列表")
+    private List<Long> cartIds;
+
     @Data
     public static class ShopOrderDTO {
         @NotNull(message = "店铺ID不能为空")

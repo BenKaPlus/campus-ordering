@@ -230,7 +230,8 @@ export default {
       selectedPayType: 'wx',
       selectedOrderIds: [],
       paymentList: [],
-      currentPaymentIndex: 0
+      currentPaymentIndex: 0,
+      selectedCartIds: []
     }
   },
   computed: {
@@ -318,6 +319,7 @@ export default {
       this.loading = true
       const validCartIds = cartIds.filter(id => Number.isInteger(id) && id > 0)
       console.log('getSettleInfo 调用，validCartIds:', validCartIds)
+      this.selectedCartIds = validCartIds
       const res = await getSettleInfo(validCartIds)
       console.log('getSettleInfo 响应:', res)
       if (res.code === 200 && res.data) {
@@ -460,10 +462,11 @@ export default {
           productNum: item.productNum
         }))
       }))
-      console.log('准备发送的 shopOrders:', shopOrders)
+      console.log('准备发送的 shopOrders:', shopOrders, 'cartIds:', this.selectedCartIds)
       const res = await createBatchOrder({
         addressId: this.selectedAddressId,
-        shopOrders: shopOrders
+        shopOrders: shopOrders,
+        cartIds: this.selectedCartIds
       })
       console.log('createBatchOrder 响应:', res)
       if (res.code === 200 && res.data) {

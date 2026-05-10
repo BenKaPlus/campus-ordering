@@ -319,6 +319,20 @@ public class OrderServiceImpl implements OrderService {
             paymentDTO.setAliQrcode(shop.getAliQrcode());
             paymentList.add(paymentDTO);
         }
+
+        // 删除购物车中的商品
+        if (dto.getCartIds() != null && !dto.getCartIds().isEmpty()) {
+            log.info("删除购物车商品，cartIds: {}", dto.getCartIds());
+            for (Long cartId : dto.getCartIds()) {
+                ShoppingCart cart = shoppingCartMapper.selectById(cartId);
+                if (cart != null && cart.getUserId().equals(userId)) {
+                    cart.setIsDeleted(1);
+                    shoppingCartMapper.updateById(cart);
+                }
+            }
+            log.info("购物车商品删除完成");
+        }
+
         } catch (Exception e) {
             log.error("createBatchOrder error", e);
             throw e;
