@@ -88,3 +88,8 @@ export function getSystemConfig() {
 export function saveSystemConfig(data) {
   return request({ url: '/admin/system/config', method: 'post', data })
 }
+
+// 支付记录
+export function getAdminPaymentList(params) {
+  return request({ url: '/admin/payment/list', method: 'get', params })
+}

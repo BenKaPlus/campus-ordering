@@ -15,7 +15,6 @@ import com.campus.ordering.mapper.ProductInfoMapper;
 import com.campus.ordering.service.ProductService;
 import com.campus.ordering.utils.RedisCacheUtil;
 import com.campus.ordering.vo.AdminProductVO;
-import com.campus.ordering.vo.ProductPageVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -143,7 +142,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductPageVO searchProduct(String keyword, Long shopId, Integer page, Integer size) {
+    public IPage<ProductInfo> searchProduct(String keyword, Long shopId, Integer page, Integer size) {
         String cacheKey = CacheConstants.SEARCH_PRODUCT + keyword + ":" + shopId + ":" + page + ":" + size;
         IPage<ProductInfo> cachedPage = redisCacheUtil.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<Page<ProductInfo>>() {});
         
@@ -165,6 +164,7 @@ public class ProductServiceImpl implements ProductService {
             redisCacheUtil.set(cacheKey, result, CacheConstants.CACHE_TIME_30_MIN, TimeUnit.MINUTES);
         }
         
+        // 为每个商品设置店铺名称（包括缓存数据）
         for (ProductInfo product : result.getRecords()) {
             if (product.getShopName() == null || product.getShopName().isEmpty()) {
                 ShopInfo shop = shopInfoMapper.selectById(product.getShopId());
@@ -174,12 +174,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
         
-        ProductPageVO pageVO = new ProductPageVO();
-        pageVO.setRecords(result.getRecords());
-        pageVO.setTotal(result.getTotal());
-        pageVO.setSize(result.getSize());
-        pageVO.setCurrent(result.getCurrent());
-        return pageVO;
+        return result;
     }
 
     @Override

@@ -31,6 +31,8 @@ public class MerchantController {
     private ProductService productService;
     @Resource
     private OrderService orderService;
+    @Resource
+    private PayService payService;
 
     // ==================== 店铺接口 ====================
     @GetMapping("/shop/detail")
@@ -166,5 +168,18 @@ public class MerchantController {
         Long merchantUserId = getUserId(request);
         ShopInfo shop = shopService.getShopByMerchantId(merchantUserId);
         return Result.success(orderService.getShopStatistics(shop.getShopId()));
+    }
+
+    // ==================== 支付记录接口 ====================
+    @GetMapping("/payment/list")
+    @ApiOperation("查询店铺收款记录")
+    public Result<IPage<com.campus.ordering.entity.PaymentInfo>> getPaymentList(
+            @RequestParam(required = false) Integer payType,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            HttpServletRequest request) {
+        Long merchantUserId = getUserId(request);
+        ShopInfo shop = shopService.getShopByMerchantId(merchantUserId);
+        return Result.success(payService.getMerchantPaymentList(shop.getShopId(), payType, page, size));
     }
 }

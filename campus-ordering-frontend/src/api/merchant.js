@@ -49,3 +49,8 @@ export function updateOrderStatus(orderId, status) {
 export function getStatistics() {
   return request({ url: '/merchant/statistics', method: 'get' })
 }
+
+// 支付记录
+export function getMerchantPaymentList(params) {
+  return request({ url: '/merchant/payment/list', method: 'get', params })
+}

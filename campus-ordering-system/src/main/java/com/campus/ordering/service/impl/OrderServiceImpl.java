@@ -53,6 +53,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Resource
     private ShoppingCartMapper shoppingCartMapper;
+    
+    @Resource
+    private PaymentInfoMapper paymentInfoMapper;
 
     @Value("${system.order.expire-minutes}")
     private Integer expireMinutes;
@@ -198,6 +201,7 @@ public class OrderServiceImpl implements OrderService {
         order.setPayAmount(order.getTotalAmount());
         order.setOrderStatus(0); // 待支付
         order.setPayStatus(0); // 未支付
+        order.setPayType(1); // 默认微信支付
         order.setOrderRemark(dto.getOrderRemark());
         order.setExpireTime(LocalDateTime.now().plusMinutes(expireMinutes));
         orderInfoMapper.insert(order);
@@ -626,6 +630,10 @@ public class OrderServiceImpl implements OrderService {
 
         // 状态流转特殊处理
         switch (status) {
+            case 1:
+                order.setPayTime(LocalDateTime.now());
+                createPaymentRecord(order);
+                break;
             case 3:
                 order.setDeliveryTime(LocalDateTime.now());
                 break;
@@ -672,6 +680,26 @@ public class OrderServiceImpl implements OrderService {
         log.setOperationUserId(operationUserId);
         log.setOperationUserName(operationUserName);
         orderStatusLogMapper.insert(log);
+    }
+
+    // 私有方法：创建支付记录
+    private void createPaymentRecord(OrderInfo order) {
+        PaymentInfo existingPayment = paymentInfoMapper.selectOne(new LambdaQueryWrapper<PaymentInfo>()
+                .eq(PaymentInfo::getOutTradeNo, order.getOrderNo())
+                .eq(PaymentInfo::getIsDeleted, 0));
+        
+        if (existingPayment == null) {
+            PaymentInfo paymentInfo = new PaymentInfo();
+            paymentInfo.setOutTradeNo(order.getOrderNo());
+            paymentInfo.setTransactionId(IdUtil.getSnowflakeNextIdStr()); // 生成唯一的交易流水号
+            paymentInfo.setOrderId(order.getOrderId());
+            paymentInfo.setUserId(order.getUserId());
+            paymentInfo.setPayType(order.getPayType() != null ? order.getPayType() : 1); // 默认微信支付
+            paymentInfo.setPayAmount(order.getPayAmount());
+            paymentInfo.setPayStatus(1);
+            paymentInfo.setPayTime(LocalDateTime.now());
+            paymentInfoMapper.insert(paymentInfo);
+        }
     }
 
     // 私有方法：回滚库存

@@ -45,6 +45,12 @@ export function getOrderPayInfo(orderId) {
 export function getWxPayParams(orderNo) {
   return request({ url: '/student/order/pay/' + orderNo, method: 'get' })
 }
+export function getPaymentInfo(orderNo) {
+  return request({ url: '/student/payment/info/' + orderNo, method: 'get' })
+}
+export function getPaymentList(params) {
+  return request({ url: '/student/payment/list', method: 'get', params })
+}
 export function updateOrderStatus(orderId, status) {
   return request({ url: '/student/order/status/' + orderId, method: 'put', params: { status } })
 }

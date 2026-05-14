@@ -11,6 +11,7 @@ import com.campus.ordering.dto.OrderDeleteDTO;
 import com.campus.ordering.dto.ShopPaymentDTO;
 import com.campus.ordering.dto.StudentInfoUpdateDTO;
 import com.campus.ordering.entity.OrderInfo;
+import com.campus.ordering.entity.PaymentInfo;
 import com.campus.ordering.entity.ShoppingCart;
 import com.campus.ordering.entity.StudentInfo;
 import com.campus.ordering.entity.SysUser;
@@ -20,6 +21,7 @@ import com.campus.ordering.service.StudentInfoService;
 import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.security.JwtTokenUtil;
 import com.campus.ordering.service.*;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -159,6 +161,23 @@ public class StudentController {
     public Result<Object> getWxPayParams(@PathVariable String orderNo, HttpServletRequest request) {
         Long userId = getUserId(request);
         return Result.success(payService.createWxPay(orderNo, userId));
+    }
+
+    @GetMapping("/payment/info/{orderNo}")
+    @ApiOperation("查询支付记录")
+    public Result<PaymentInfo> getPaymentInfo(@PathVariable String orderNo, HttpServletRequest request) {
+        return Result.success(payService.getPaymentByOrderNo(orderNo));
+    }
+
+    @GetMapping("/payment/list")
+    @ApiOperation("查询我的支付记录列表")
+    public Result<IPage<PaymentInfo>> getPaymentList(
+            @RequestParam(required = false) Integer payType,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            HttpServletRequest request) {
+        Long userId = getUserId(request);
+        return Result.success(payService.getStudentPaymentList(userId, payType, page, size));
     }
 
     @PutMapping("/order/status/{orderId}")

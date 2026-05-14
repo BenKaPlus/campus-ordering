@@ -5,7 +5,6 @@ import com.campus.ordering.common.Result;
 import com.campus.ordering.entity.ProductCategory;
 import com.campus.ordering.entity.ProductInfo;
 import com.campus.ordering.service.PayService;
-import com.campus.ordering.vo.ProductPageVO;
 import com.campus.ordering.service.ShopService;
 import com.campus.ordering.service.FileService;
 import com.campus.ordering.service.ProductService;
@@ -96,7 +95,7 @@ public class CommonController implements WebMvcConfigurer {
 
     @GetMapping("/product/search")
     @ApiOperation("搜索商品")
-    public Result<ProductPageVO> searchProduct(
+    public Result<IPage<ProductInfo>> searchProduct(
             @RequestParam String keyword,
             @RequestParam(required = false) Long shopId,
             @RequestParam(defaultValue = "1") Integer page,

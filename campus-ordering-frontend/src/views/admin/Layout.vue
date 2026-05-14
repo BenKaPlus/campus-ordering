@@ -12,6 +12,10 @@
           <i class="el-icon-s-order"></i>
           <span>订单管理</span>
         </el-menu-item>
+        <el-menu-item index="/admin/payment">
+          <i class="el-icon-s-finance"></i>
+          <span>支付管理</span>
+        </el-menu-item>
         <el-menu-item index="/admin/user">
           <i class="el-icon-user"></i>
           <span>用户管理</span>

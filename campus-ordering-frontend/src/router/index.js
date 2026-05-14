@@ -126,6 +126,12 @@ const routes = [
         meta: { title: '订单管理', role: 'ADMIN' }
       },
       {
+        path: 'payment',
+        name: 'AdminPayment',
+        component: () => import('@/views/admin/Payment.vue'),
+        meta: { title: '支付管理', role: 'ADMIN' }
+      },
+      {
         path: 'merchant-apply',
         name: 'MerchantApply',
         component: () => import('@/views/admin/MerchantApply.vue'),

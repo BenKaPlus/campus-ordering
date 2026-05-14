@@ -57,7 +57,7 @@
     <el-card v-else>
       <div slot="header" class="header-wrapper">
         <div class="header-left">
-          <el-tabs v-model="activeTab" @tab-click="getOrderList">
+          <el-tabs v-model="activeTab" @tab-click="handleTabClick">
             <el-tab-pane label="全部" name="all"></el-tab-pane>
             <el-tab-pane label="待支付" name="0"></el-tab-pane>
             <el-tab-pane label="待接单" name="1"></el-tab-pane>
@@ -66,6 +66,7 @@
             <el-tab-pane label="配送中" name="4"></el-tab-pane>
             <el-tab-pane label="已完成" name="5"></el-tab-pane>
             <el-tab-pane label="已取消" name="6"></el-tab-pane>
+            <el-tab-pane label="支付记录" name="payment"></el-tab-pane>
           </el-tabs>
         </div>
         <div class="header-right">
@@ -87,7 +88,7 @@
           </el-input>
         </div>
       </div>
-      <el-table :data="orderList" style="width: 100%;" v-loading="loading" @selection-change="handleSelectionChange">
+      <el-table :data="orderList" style="width: 100%;" v-loading="loading" @selection-change="handleSelectionChange" v-if="activeTab !== 'payment'">
         <el-table-column type="selection" width="55"></el-table-column>
         <el-table-column prop="orderNo" label="订单号" width="180"></el-table-column>
         <el-table-column label="商品信息" min-width="200">
@@ -131,7 +132,80 @@
         :total="total"
         :current-page.sync="page"
         :page-size.sync="size"
-        @current-change="getOrderList"
+        @current-change="handlePageChange"
+      ></el-pagination>
+
+      <!-- 支付记录表格 -->
+      <div v-if="activeTab === 'payment'" class="payment-stats">
+        <el-row :gutter="20">
+          <el-col :span="6">
+            <el-card shadow="hover">
+              <div class="stat-item">
+                <div class="stat-label">微信支付</div>
+                <div class="stat-value">¥{{ paymentStats.wxAmount }}</div>
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card shadow="hover">
+              <div class="stat-item">
+                <div class="stat-label">支付宝支付</div>
+                <div class="stat-value">¥{{ paymentStats.aliAmount }}</div>
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card shadow="hover">
+              <div class="stat-item">
+                <div class="stat-label">支付笔数</div>
+                <div class="stat-value">{{ paymentStats.totalCount }}</div>
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card shadow="hover">
+              <div class="stat-item">
+                <div class="stat-label">总金额</div>
+                <div class="stat-value">¥{{ paymentStats.totalAmount }}</div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+        <div class="payment-filter">
+          <el-select v-model="paymentFilter.payType" placeholder="支付方式" clearable @change="getPaymentList">
+            <el-option label="全部" :value="null"></el-option>
+            <el-option label="微信支付" :value="1"></el-option>
+            <el-option label="支付宝" :value="2"></el-option>
+          </el-select>
+        </div>
+      </div>
+      <el-table :data="paymentList" style="width: 100%;" v-loading="paymentLoading" v-if="activeTab === 'payment'">
+        <el-table-column prop="outTradeNo" label="订单号" width="180"></el-table-column>
+        <el-table-column prop="payType" label="支付方式" width="100">
+          <template slot-scope="scope">{{ scope.row.payType === 1 ? '微信支付' : '支付宝' }}</template>
+        </el-table-column>
+        <el-table-column prop="payAmount" label="支付金额" width="100">
+          <template slot-scope="scope">¥{{ scope.row.payAmount }}</template>
+        </el-table-column>
+        <el-table-column prop="payStatus" label="支付状态" width="100">
+          <template slot-scope="scope">
+            <el-tag :type="scope.row.payStatus === 1 ? 'success' : 'danger'">{{ scope.row.payStatus === 1 ? '成功' : '失败' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="payTime" label="支付时间" width="160">
+          <template slot-scope="scope">{{ scope.row.payTime ? scope.row.payTime.replace('T', ' ') : '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="transactionId" label="交易流水号" min-width="180"></el-table-column>
+      </el-table>
+      <el-pagination
+        class="pagination"
+        background
+        layout="prev, pager, next"
+        :total="paymentTotal"
+        :current-page.sync="paymentPage"
+        :page-size.sync="paymentSize"
+        @current-change="getPaymentList"
+        v-if="activeTab === 'payment'"
       ></el-pagination>
     </el-card>
 
@@ -195,7 +269,7 @@
 </template>
 
 <script>
-import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders } from '@/api/student'
+import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders, getPaymentList } from '@/api/student'
 
 export default {
   name: 'StudentOrder',
@@ -230,7 +304,19 @@ export default {
       selectedPayType: 'wx',
       selectedOrderIds: [],
       paymentList: [],
-      currentPaymentIndex: 0,
+      paymentTotal: 0,
+      paymentPage: 1,
+      paymentSize: 10,
+      paymentLoading: false,
+      paymentFilter: {
+        payType: null
+      },
+      paymentStats: {
+        wxAmount: 0,
+        aliAmount: 0,
+        totalCount: 0,
+        totalAmount: 0
+      },
       selectedCartIds: []
     }
   },
@@ -503,7 +589,7 @@ export default {
       await updateOrderStatus(orderId, 1)
       this.qrcodeDialogVisible = false
       this.$message.success('支付成功')
-      
+
       if (this.paymentList && this.paymentList.length > 0) {
         this.currentPaymentIndex++
         console.log('currentPaymentIndex 增加后:', this.currentPaymentIndex)
@@ -518,6 +604,53 @@ export default {
         console.log('paymentList 为空，直接跳转到订单页面')
         this.$router.push('/order')
       }
+    },
+    handleTabClick(tab) {
+      if (tab.name === 'payment') {
+        this.getPaymentList()
+      } else {
+        this.page = 1
+        this.getOrderList()
+      }
+    },
+    handlePageChange() {
+      if (this.activeTab === 'payment') {
+        this.getPaymentList()
+      } else {
+        this.getOrderList()
+      }
+    },
+    async getPaymentList() {
+      this.paymentLoading = true
+      const params = {
+        page: this.paymentPage,
+        size: this.paymentSize
+      }
+      if (this.paymentFilter.payType !== null) {
+        params.payType = this.paymentFilter.payType
+      }
+      const res = await getPaymentList(params)
+      if (res.code === 200) {
+        this.paymentList = res.data.records
+        this.paymentTotal = res.data.total
+        this.calculatePaymentStats()
+      }
+      this.paymentLoading = false
+    },
+    calculatePaymentStats() {
+      let wxAmount = 0
+      let aliAmount = 0
+      for (const item of this.paymentList) {
+        if (item.payType === 1) {
+          wxAmount += Number(item.payAmount)
+        } else if (item.payType === 2) {
+          aliAmount += Number(item.payAmount)
+        }
+      }
+      this.paymentStats.wxAmount = wxAmount.toFixed(2)
+      this.paymentStats.aliAmount = aliAmount.toFixed(2)
+      this.paymentStats.totalCount = this.paymentTotal
+      this.paymentStats.totalAmount = (wxAmount + aliAmount).toFixed(2)
     }
   }
 }
@@ -623,6 +756,28 @@ export default {
 .pagination {
   margin-top: 20px;
   text-align: center;
+}
+.payment-stats {
+  margin-bottom: 20px;
+}
+.payment-stats .el-card {
+  text-align: center;
+}
+.stat-item {
+  padding: 10px 0;
+}
+.stat-label {
+  font-size: 14px;
+  color: #909399;
+  margin-bottom: 5px;
+}
+.stat-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #303133;
+}
+.payment-filter {
+  margin: 15px 0;
 }
 .order-detail-items {
   margin-top: 20px;

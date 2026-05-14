@@ -40,6 +40,8 @@ public class AdminController {
     private OrderService orderService;
     @Resource
     private MerchantApplyService merchantApplyService;
+    @Resource
+    private com.campus.ordering.service.PayService payService;
 
     // ==================== 用户管理接口 ====================
     @GetMapping("/user/list")
@@ -181,5 +183,17 @@ public class AdminController {
             @RequestParam(required = false) String auditRemark) {
         merchantApplyService.auditApply(applyId, auditStatus, auditRemark);
         return Result.success();
+    }
+
+    // ==================== 支付记录管理接口 ====================
+    @GetMapping("/payment/list")
+    @ApiOperation("查询支付记录列表（支持多维度筛选）")
+    public Result<IPage<com.campus.ordering.entity.PaymentInfo>> getPaymentList(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long shopId,
+            @RequestParam(required = false) Integer payType,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        return Result.success(payService.getAdminPaymentList(userId, shopId, payType, page, size));
     }
 }

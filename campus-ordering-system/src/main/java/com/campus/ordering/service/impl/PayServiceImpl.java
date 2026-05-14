@@ -4,6 +4,7 @@ import cn.hutool.core.util.IdUtil;
 import com.alipay.api.AlipayApiException;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.entity.PaymentInfo;
 import com.campus.ordering.entity.OrderInfo;
@@ -54,6 +55,22 @@ public class PayServiceImpl implements com.campus.ordering.service.PayService {
             throw new BusinessException(ResultCode.ERROR, "订单状态异常，无法支付");
         }
 
+        PaymentInfo existingPayment = paymentInfoMapper.selectOne(new LambdaQueryWrapper<PaymentInfo>()
+                .eq(PaymentInfo::getOutTradeNo, orderNo)
+                .eq(PaymentInfo::getIsDeleted, 0));
+        
+        if (existingPayment == null) {
+            PaymentInfo paymentInfo = new PaymentInfo();
+            paymentInfo.setOutTradeNo(orderNo);
+            paymentInfo.setOrderId(order.getOrderId());
+            paymentInfo.setUserId(userId);
+            paymentInfo.setPayType(1);
+            paymentInfo.setPayAmount(order.getPayAmount());
+            paymentInfo.setPayStatus(0);
+            paymentInfoMapper.insert(paymentInfo);
+            logger.info("创建微信支付记录：{}", orderNo);
+        }
+
         Map<String, Object> payParams = new HashMap<>();
         payParams.put("orderNo", orderNo);
         payParams.put("totalAmount", order.getActualAmount());
@@ -84,6 +101,22 @@ public class PayServiceImpl implements com.campus.ordering.service.PayService {
 
         if (order.getOrderStatus() != 0) {
             throw new BusinessException(ResultCode.ERROR, "订单状态异常，无法支付");
+        }
+
+        PaymentInfo existingPayment = paymentInfoMapper.selectOne(new LambdaQueryWrapper<PaymentInfo>()
+                .eq(PaymentInfo::getOutTradeNo, orderNo)
+                .eq(PaymentInfo::getIsDeleted, 0));
+        
+        if (existingPayment == null) {
+            PaymentInfo paymentInfo = new PaymentInfo();
+            paymentInfo.setOutTradeNo(orderNo);
+            paymentInfo.setOrderId(order.getOrderId());
+            paymentInfo.setUserId(userId);
+            paymentInfo.setPayType(2);
+            paymentInfo.setPayAmount(order.getPayAmount());
+            paymentInfo.setPayStatus(0);
+            paymentInfoMapper.insert(paymentInfo);
+            logger.info("创建支付宝支付记录：{}", orderNo);
         }
 
         logger.info("创建支付宝支付订单：{}", orderNo);
@@ -191,5 +224,69 @@ public class PayServiceImpl implements com.campus.ordering.service.PayService {
             }
         }
         return map;
+    }
+
+    @Override
+    public IPage<PaymentInfo> getStudentPaymentList(Long userId, Integer payType, Integer page, Integer size) {
+        LambdaQueryWrapper<PaymentInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PaymentInfo::getUserId, userId)
+               .eq(PaymentInfo::getIsDeleted, 0);
+        if (payType != null) {
+            wrapper.eq(PaymentInfo::getPayType, payType);
+        }
+        wrapper.orderByDesc(PaymentInfo::getPayTime);
+        
+        IPage<PaymentInfo> result = paymentInfoMapper.selectPage(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size), wrapper);
+        return result;
+    }
+
+    @Override
+    public IPage<PaymentInfo> getMerchantPaymentList(Long shopId, Integer payType, Integer page, Integer size) {
+        LambdaQueryWrapper<OrderInfo> orderWrapper = new LambdaQueryWrapper<>();
+        orderWrapper.eq(OrderInfo::getShopId, shopId)
+                    .eq(OrderInfo::getIsDeleted, 0);
+        var orderList = orderInfoMapper.selectList(orderWrapper);
+        if (orderList.isEmpty()) {
+            return new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size);
+        }
+        
+        var orderIds = orderList.stream().map(OrderInfo::getOrderId).collect(java.util.stream.Collectors.toList());
+        LambdaQueryWrapper<PaymentInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(PaymentInfo::getOrderId, orderIds)
+              .eq(PaymentInfo::getIsDeleted, 0);
+        if (payType != null) {
+            wrapper.eq(PaymentInfo::getPayType, payType);
+        }
+        wrapper.orderByDesc(PaymentInfo::getPayTime);
+        
+        return paymentInfoMapper.selectPage(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size), wrapper);
+    }
+
+    @Override
+    public IPage<PaymentInfo> getAdminPaymentList(Long userId, Long shopId, Integer payType, Integer page, Integer size) {
+        LambdaQueryWrapper<PaymentInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PaymentInfo::getIsDeleted, 0);
+        
+        if (userId != null) {
+            wrapper.eq(PaymentInfo::getUserId, userId);
+        }
+        
+        if (payType != null) {
+            wrapper.eq(PaymentInfo::getPayType, payType);
+        }
+        
+        if (shopId != null) {
+            LambdaQueryWrapper<OrderInfo> orderWrapper = new LambdaQueryWrapper<>();
+            orderWrapper.eq(OrderInfo::getShopId, shopId)
+                        .eq(OrderInfo::getIsDeleted, 0);
+            var orderList = orderInfoMapper.selectList(orderWrapper);
+            if (!orderList.isEmpty()) {
+                var orderIds = orderList.stream().map(OrderInfo::getOrderId).collect(java.util.stream.Collectors.toList());
+                wrapper.in(PaymentInfo::getOrderId, orderIds);
+            }
+        }
+        
+        wrapper.orderByDesc(PaymentInfo::getPayTime);
+        return paymentInfoMapper.selectPage(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size), wrapper);
     }
 }
