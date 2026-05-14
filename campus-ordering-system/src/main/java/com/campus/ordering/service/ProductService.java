@@ -3,6 +3,7 @@ package com.campus.ordering.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campus.ordering.entity.ProductCategory;
 import com.campus.ordering.entity.ProductInfo;
+import com.campus.ordering.vo.ProductPageVO;
 
 import java.util.List;
 
@@ -35,7 +36,7 @@ public interface ProductService {
     /**
      * 搜索商品
      */
-    IPage<ProductInfo> searchProduct(String keyword, Long shopId, Integer page, Integer size);
+    ProductPageVO searchProduct(String keyword, Long shopId, Integer page, Integer size);
 
     /**
      * 更新商品信息

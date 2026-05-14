@@ -79,7 +79,7 @@
       :total="total"
       :current-page.sync="page"
       :page-size.sync="size"
-      @current-change="searchType === 'shop' ? getShopList : getProductList"
+      @current-change="handlePageChange"
     ></el-pagination>
   </div>
 </template>
@@ -144,6 +144,13 @@ export default {
     },
     goShopDetail(shopId) {
       this.$router.push('/shop/' + shopId)
+    },
+    handlePageChange() {
+      if (this.searchType === 'shop') {
+        this.getShopList()
+      } else {
+        this.getProductList()
+      }
     }
   },
   watch: {
