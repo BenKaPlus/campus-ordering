@@ -218,6 +218,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public List<ShopPaymentDTO> createBatchOrder(BatchOrderCreateDTO dto, Long userId) {
         log.info("createBatchOrder called, userId: {}, dto: {}", userId, dto);
+        log.info("接收到的 cartIds: {}", dto.getCartIds());
         List<ShopPaymentDTO> paymentList = new ArrayList<>();
 
         try {
