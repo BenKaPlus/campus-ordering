@@ -215,6 +215,21 @@ public class OrderServiceImpl implements OrderService {
         // 8. 记录订单状态日志
         saveOrderStatusLog(order.getOrderId(), orderNo, null, 0, "用户下单", userId, sysUserMapper.selectById(userId).getUserName());
 
+        // 9. 清除购物车中的已结算商品
+        if (dto.getCartIds() != null && !dto.getCartIds().isEmpty()) {
+            for (Long cartId : dto.getCartIds()) {
+                ShoppingCart cart = shoppingCartMapper.selectById(cartId);
+                if (cart != null && cart.getUserId().equals(userId)) {
+                    com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ShoppingCart> updateWrapper =
+                        new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
+                    updateWrapper.eq(ShoppingCart::getCartId, cartId)
+                                .eq(ShoppingCart::getUserId, userId)
+                                .set(ShoppingCart::getIsDeleted, 1);
+                    shoppingCartMapper.update(null, updateWrapper);
+                }
+            }
+        }
+
         return orderNo;
     }
 
@@ -331,8 +346,12 @@ public class OrderServiceImpl implements OrderService {
             for (Long cartId : dto.getCartIds()) {
                 ShoppingCart cart = shoppingCartMapper.selectById(cartId);
                 if (cart != null && cart.getUserId().equals(userId)) {
-                    cart.setIsDeleted(1);
-                    shoppingCartMapper.updateById(cart);
+                    com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ShoppingCart> updateWrapper =
+                        new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
+                    updateWrapper.eq(ShoppingCart::getCartId, cartId)
+                                .eq(ShoppingCart::getUserId, userId)
+                                .set(ShoppingCart::getIsDeleted, 1);
+                    shoppingCartMapper.update(null, updateWrapper);
                 }
             }
             log.info("购物车商品删除完成");

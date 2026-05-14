@@ -26,6 +26,9 @@ public class OrderCreateDTO {
     @ApiModelProperty(value = "商品列表", required = true)
     private List<OrderItemDTO> itemList;
 
+    @ApiModelProperty(value = "购物车ID列表")
+    private List<Long> cartIds;
+
     @Data
     public static class OrderItemDTO {
         @NotNull(message = "商品ID不能为空")

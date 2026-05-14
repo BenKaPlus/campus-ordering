@@ -133,6 +133,7 @@
         :current-page.sync="page"
         :page-size.sync="size"
         @current-change="handlePageChange"
+        v-if="activeTab !== 'payment'"
       ></el-pagination>
 
       <!-- 支付记录表格 -->
@@ -269,7 +270,7 @@
 </template>
 
 <script>
-import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders, getPaymentList } from '@/api/student'
+import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders, getPaymentList, deleteCart } from '@/api/student'
 
 export default {
   name: 'StudentOrder',
@@ -556,6 +557,10 @@ export default {
       })
       console.log('createBatchOrder 响应:', res)
       if (res.code === 200 && res.data) {
+        if (this.selectedCartIds && this.selectedCartIds.length > 0) {
+          await deleteCart(this.selectedCartIds)
+          console.log('购物车商品已删除')
+        }
         this.paymentList = res.data
         this.currentPaymentIndex = 0
         console.log('设置 paymentList:', this.paymentList)
@@ -588,6 +593,7 @@ export default {
       const orderId = this.currentShopPayment.orderId
       await updateOrderStatus(orderId, 1)
       this.qrcodeDialogVisible = false
+      this.orderDetailVisible = false
       this.$message.success('支付成功')
 
       if (this.paymentList && this.paymentList.length > 0) {
@@ -597,12 +603,13 @@ export default {
           console.log('还有下一个店铺需要支付，调用 showNextPayment')
           this.showNextPayment()
         } else {
-          console.log('所有店铺支付完成，跳转到订单页面')
-          this.$router.push('/order')
+          console.log('所有店铺支付完成，刷新订单列表')
+          this.isSettleMode = false
+          this.getOrderList()
         }
       } else {
-        console.log('paymentList 为空，直接跳转到订单页面')
-        this.$router.push('/order')
+        console.log('paymentList 为空，刷新订单列表')
+        this.getOrderList()
       }
     },
     handleTabClick(tab) {
