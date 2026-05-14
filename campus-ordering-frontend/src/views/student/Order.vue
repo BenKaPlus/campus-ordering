@@ -195,7 +195,7 @@
 </template>
 
 <script>
-import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getCartList, getOrderPayInfo, deleteOrders } from '@/api/student'
+import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders } from '@/api/student'
 
 export default {
   name: 'StudentOrder',
