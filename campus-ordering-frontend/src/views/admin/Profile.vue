@@ -87,10 +87,21 @@ export default {
     this.loadUserInfo()
   },
   methods: {
-    handleAvatarSuccess(res) {
+    async handleAvatarSuccess(res) {
       if (res.code === 200) {
         this.userInfo.avatar = res.data
-        this.$message.success('头像上传成功')
+        // 立即保存头像到数据库并更新 store
+        try {
+          const updateRes = await updateUserInfo({ avatar: this.userInfo.avatar })
+          if (updateRes.code === 200) {
+            await this.$store.dispatch('getUserInfo')
+            this.$message.success('头像上传成功')
+          } else {
+            this.$message.error(updateRes.msg || '头像保存失败')
+          }
+        } catch (error) {
+          this.$message.error('头像保存失败')
+        }
       } else {
         this.$message.error(res.msg || '头像上传失败')
       }
