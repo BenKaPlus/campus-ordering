@@ -211,8 +211,10 @@ export default {
     async getReviewSummary() {
       try {
         const res = await getMerchantShopReviewSummary();
+        console.log('评价统计接口返回:', res);
         if (res.code === 200) {
           this.reviewSummary = res.data;
+          console.log('设置后的 reviewSummary:', this.reviewSummary);
         }
       } catch (error) {
         console.error('获取评价统计失败:', error);

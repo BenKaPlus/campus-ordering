@@ -209,7 +209,9 @@ public class MerchantController {
     public Result<Map<String, Object>> getShopReviewSummary(HttpServletRequest request) {
         Long merchantUserId = getUserId(request);
         ShopInfo shop = shopService.getShopByMerchantId(merchantUserId);
-        return Result.success(orderReviewService.getShopReviewSummary(shop.getShopId()));
+        Map<String, Object> summary = orderReviewService.getShopReviewSummary(shop.getShopId());
+        System.out.println("店铺ID: " + shop.getShopId() + "，评价统计: " + summary);
+        return Result.success(summary);
     }
 
     @PostMapping("/review/reply")

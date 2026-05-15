@@ -155,9 +155,11 @@ public class OrderReviewServiceImpl extends ServiceImpl<OrderReviewMapper, Order
 
     @Override
     public Map<String, Object> getShopReviewSummary(Long shopId) {
+        System.out.println("开始查询店铺 " + shopId + " 的评价统计");
         LambdaQueryWrapper<OrderReview> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(OrderReview::getShopId, shopId);
         List<OrderReview> reviewList = this.list(queryWrapper);
+        System.out.println("查询到 " + reviewList.size() + " 条评价");
 
         Map<String, Object> summary = new HashMap<>();
         if (reviewList.isEmpty()) {
@@ -193,6 +195,7 @@ public class OrderReviewServiceImpl extends ServiceImpl<OrderReviewMapper, Order
             summary.put("avgProductRating", totalProduct.divide(
                     BigDecimal.valueOf(reviewList.size()), 1, RoundingMode.HALF_UP));
         }
+        System.out.println("返回的统计数据: " + summary);
 
         return summary;
     }
