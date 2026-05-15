@@ -33,6 +33,7 @@ public class StudentInfoServiceImpl implements StudentInfoService {
                 studentInfo.setUserName(sysUser.getUserName());
                 studentInfo.setPhone(sysUser.getPhone());
                 studentInfo.setUserNo(sysUser.getUserNo());
+                studentInfo.setAvatar(sysUser.getAvatar());
             }
         }
 
@@ -88,6 +89,9 @@ public class StudentInfoServiceImpl implements StudentInfoService {
             }
             if (dto.getPhone() != null) {
                 sysUser.setPhone(dto.getPhone());
+            }
+            if (dto.getAvatar() != null) {
+                sysUser.setAvatar(dto.getAvatar());
             }
             sysUserMapper.updateById(sysUser);
         }

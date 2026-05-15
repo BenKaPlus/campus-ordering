@@ -28,4 +28,7 @@ public class StudentInfoUpdateDTO {
 
     @ApiModelProperty(value = "宿舍地址")
     private String dormitory;
+
+    @ApiModelProperty(value = "头像URL")
+    private String avatar;
 }

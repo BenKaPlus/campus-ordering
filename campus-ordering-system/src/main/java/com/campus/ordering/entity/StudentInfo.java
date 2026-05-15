@@ -51,6 +51,10 @@ public class StudentInfo {
     @TableField(exist = false)
     private String userNo;
 
+    @ApiModelProperty(value = "头像URL")
+    @TableField(exist = false)
+    private String avatar;
+
     @ApiModelProperty(value = "创建时间")
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;

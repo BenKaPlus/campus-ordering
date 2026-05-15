@@ -120,7 +120,11 @@ public class AuthServiceImpl implements AuthService {
         roleInfo.setRoleName(role.getRoleName());
         loginVO.setRoleInfo(roleInfo);
 
-        // 9. 删除验证码
+        // 9. 更新最后登录时间
+        user.setLastLoginTime(java.time.LocalDateTime.now());
+        sysUserMapper.updateById(user);
+
+        // 10. 删除验证码
         redisTemplate.delete("captcha:" + loginDTO.getUuid());
 
         return loginVO;
