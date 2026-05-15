@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.dto.LoginDTO;
 import com.campus.ordering.dto.MerchantApplyDTO;
+import com.campus.ordering.dto.PasswordUpdateDTO;
 import com.campus.ordering.dto.StudentRegisterDTO;
 import com.campus.ordering.dto.UserInfoUpdateDTO;
 import com.campus.ordering.entity.SysRole;
@@ -152,6 +153,35 @@ public class AuthController {
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("更新失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/user/password")
+    @ApiOperation("修改密码")
+    @PreAuthorize("isAuthenticated()")
+    public Result<Void> updatePassword(@RequestBody PasswordUpdateDTO dto, Principal principal) {
+        try {
+            String userNo = principal.getName();
+            SysUser user = sysUserMapper.selectByUserNo(userNo);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+            
+            // 验证旧密码
+            org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder = 
+                new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+            if (!encoder.matches(dto.getOldPassword(), user.getPassword())) {
+                return Result.error("旧密码错误");
+            }
+            
+            // 更新新密码
+            user.setPassword(encoder.encode(dto.getNewPassword()));
+            sysUserMapper.updateById(user);
+            
+            return Result.success();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("修改密码失败: " + e.getMessage());
         }
     }
 

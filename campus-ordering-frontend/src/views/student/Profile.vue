@@ -121,6 +121,24 @@
             </el-table-column>
           </el-table>
         </el-tab-pane>
+
+        <el-tab-pane label="修改密码" name="password">
+          <el-form ref="passwordForm" :model="passwordForm" :rules="passwordRules" label-width="100px" class="password-form">
+            <el-form-item label="旧密码" prop="oldPassword">
+              <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入旧密码" show-password></el-input>
+            </el-form-item>
+            <el-form-item label="新密码" prop="newPassword">
+              <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" show-password></el-input>
+            </el-form-item>
+            <el-form-item label="确认密码" prop="confirmPassword">
+              <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" show-password></el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleUpdatePassword" :loading="passwordLoading">修改密码</el-button>
+              <el-button @click="resetPasswordForm">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -155,10 +173,19 @@
 <script>
 import { mapGetters } from 'vuex'
 import { getStudentInfo, updateStudentInfo, getAddressList, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/api/student'
+import { updatePassword } from '@/api/auth'
 
 export default {
   name: 'StudentProfile',
   data() {
+    // 校验两次密码是否一致
+    const validateConfirmPassword = (rule, value, callback) => {
+      if (value !== this.passwordForm.newPassword) {
+        callback(new Error('两次输入的密码不一致'))
+      } else {
+        callback()
+      }
+    }
     return {
       activeTab: 'info',
       studentInfo: {
@@ -173,6 +200,23 @@ export default {
         avatar: ''
       },
       infoLoading: false,
+      passwordForm: {
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      },
+      passwordLoading: false,
+      passwordRules: {
+        oldPassword: [{ required: true, message: '请输入旧密码', trigger: 'blur' }],
+        newPassword: [
+          { required: true, message: '请输入新密码', trigger: 'blur' },
+          { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+        ],
+        confirmPassword: [
+          { required: true, message: '请再次输入新密码', trigger: 'blur' },
+          { validator: validateConfirmPassword, trigger: 'blur' }
+        ]
+      },
       addressList: [],
       addressDialogVisible: false,
       addressDialogTitle: '新增地址',
@@ -351,6 +395,39 @@ export default {
           this.$message.error('删除失败')
         }
       }).catch(() => {})
+    },
+    async handleUpdatePassword() {
+      try {
+        await this.$refs.passwordForm.validate()
+        this.passwordLoading = true
+        const res = await updatePassword({
+          oldPassword: this.passwordForm.oldPassword,
+          newPassword: this.passwordForm.newPassword
+        })
+        if (res.code === 200) {
+          this.$message.success('密码修改成功，请重新登录')
+          this.resetPasswordForm()
+          // 退出登录
+          this.$store.dispatch('logout')
+          this.$router.push('/login')
+        } else {
+          this.$message.error(res.msg || '密码修改失败')
+        }
+      } catch (error) {
+        if (error !== false) {
+          this.$message.error(error.msg || '密码修改失败')
+        }
+      } finally {
+        this.passwordLoading = false
+      }
+    },
+    resetPasswordForm() {
+      this.passwordForm = {
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }
+      this.$refs.passwordForm && this.$refs.passwordForm.resetFields()
     }
   }
 }

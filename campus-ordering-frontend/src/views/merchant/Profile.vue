@@ -3,70 +3,101 @@
     <el-card>
       <div slot="header">个人中心</div>
 
-      <el-form ref="infoForm" :model="userInfo" label-width="100px" class="info-form">
-        <el-row>
-          <el-col :span="24">
-            <el-form-item label="头像">
-              <div class="avatar-uploader">
-                <el-upload
-                  class="avatar-uploader"
-                  action="/api/common/upload/image"
-                  :show-file-list="false"
-                  :on-success="handleAvatarSuccess"
-                  :before-upload="beforeAvatarUpload"
-                  :headers="uploadHeaders"
-                >
-                  <img v-if="userInfo.avatar" :src="userInfo.avatar" class="avatar">
-                  <i v-else class="el-icon-plus avatar-uploader-icon"></i>
-                </el-upload>
-                <div class="upload-tip">点击上传头像，支持jpg、png格式</div>
-              </div>
-            </el-form-item>
-          </el-col>
-        </el-row>
+      <el-tabs v-model="activeTab">
+        <el-tab-pane label="基本信息" name="info">
+          <el-form ref="infoForm" :model="userInfo" label-width="100px" class="info-form">
+            <el-row>
+              <el-col :span="24">
+                <el-form-item label="头像">
+                  <div class="avatar-uploader">
+                    <el-upload
+                      class="avatar-uploader"
+                      action="/api/common/upload/image"
+                      :show-file-list="false"
+                      :on-success="handleAvatarSuccess"
+                      :before-upload="beforeAvatarUpload"
+                      :headers="uploadHeaders"
+                    >
+                      <img v-if="userInfo.avatar" :src="userInfo.avatar" class="avatar">
+                      <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+                    </el-upload>
+                    <div class="upload-tip">点击上传头像，支持jpg、png格式</div>
+                  </div>
+                </el-form-item>
+              </el-col>
+            </el-row>
 
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="账号">
-              <el-input v-model="userInfo.userNo" disabled></el-input>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="姓名">
-              <el-input v-model="userInfo.userName" placeholder="请输入姓名"></el-input>
-            </el-form-item>
-          </el-col>
-        </el-row>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="账号">
+                  <el-input v-model="userInfo.userNo" disabled></el-input>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="姓名">
+                  <el-input v-model="userInfo.userName" placeholder="请输入姓名"></el-input>
+                </el-form-item>
+              </el-col>
+            </el-row>
 
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="手机号">
-              <el-input v-model="userInfo.phone" placeholder="请输入手机号"></el-input>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="角色">
-              <el-tag type="warning">商家</el-tag>
-            </el-form-item>
-          </el-col>
-        </el-row>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="手机号">
+                  <el-input v-model="userInfo.phone" placeholder="请输入手机号"></el-input>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="角色">
+                  <el-tag type="warning">商家</el-tag>
+                </el-form-item>
+              </el-col>
+            </el-row>
 
-        <el-form-item>
-          <el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading">保存修改</el-button>
-        </el-form-item>
-      </el-form>
+            <el-form-item>
+              <el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading">保存修改</el-button>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+
+        <el-tab-pane label="修改密码" name="password">
+          <el-form ref="passwordForm" :model="passwordForm" :rules="passwordRules" label-width="100px" class="password-form">
+            <el-form-item label="旧密码" prop="oldPassword">
+              <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入旧密码" show-password></el-input>
+            </el-form-item>
+            <el-form-item label="新密码" prop="newPassword">
+              <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" show-password></el-input>
+            </el-form-item>
+            <el-form-item label="确认密码" prop="confirmPassword">
+              <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" show-password></el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleUpdatePassword" :loading="passwordLoading">修改密码</el-button>
+              <el-button @click="resetPasswordForm">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
     </el-card>
   </div>
 </template>
 
 <script>
 import { mapGetters } from 'vuex'
-import { getUserInfo, updateUserInfo } from '@/api/auth'
+import { getUserInfo, updateUserInfo, updatePassword } from '@/api/auth'
 
 export default {
   name: 'MerchantProfile',
   data() {
+    // 校验两次密码是否一致
+    const validateConfirmPassword = (rule, value, callback) => {
+      if (value !== this.passwordForm.newPassword) {
+        callback(new Error('两次输入的密码不一致'))
+      } else {
+        callback()
+      }
+    }
     return {
+      activeTab: 'info',
       userInfo: {
         userNo: '',
         userName: '',
@@ -74,6 +105,23 @@ export default {
         avatar: ''
       },
       infoLoading: false,
+      passwordForm: {
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      },
+      passwordLoading: false,
+      passwordRules: {
+        oldPassword: [{ required: true, message: '请输入旧密码', trigger: 'blur' }],
+        newPassword: [
+          { required: true, message: '请输入新密码', trigger: 'blur' },
+          { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+        ],
+        confirmPassword: [
+          { required: true, message: '请再次输入新密码', trigger: 'blur' },
+          { validator: validateConfirmPassword, trigger: 'blur' }
+        ]
+      },
       uploadHeaders: {}
     }
   },
@@ -152,6 +200,39 @@ export default {
       } finally {
         this.infoLoading = false
       }
+    },
+    async handleUpdatePassword() {
+      try {
+        await this.$refs.passwordForm.validate()
+        this.passwordLoading = true
+        const res = await updatePassword({
+          oldPassword: this.passwordForm.oldPassword,
+          newPassword: this.passwordForm.newPassword
+        })
+        if (res.code === 200) {
+          this.$message.success('密码修改成功，请重新登录')
+          this.resetPasswordForm()
+          // 退出登录
+          this.$store.dispatch('logout')
+          this.$router.push('/login')
+        } else {
+          this.$message.error(res.msg || '密码修改失败')
+        }
+      } catch (error) {
+        if (error !== false) {
+          this.$message.error(error.msg || '密码修改失败')
+        }
+      } finally {
+        this.passwordLoading = false
+      }
+    },
+    resetPasswordForm() {
+      this.passwordForm = {
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }
+      this.$refs.passwordForm && this.$refs.passwordForm.resetFields()
     }
   }
 }
