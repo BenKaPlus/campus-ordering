@@ -91,6 +91,12 @@ const routes = [
         name: 'MerchantStatistics',
         component: () => import('@/views/merchant/Statistics.vue'),
         meta: { title: '数据统计', role: 'MERCHANT' }
+      },
+      {
+        path: 'profile',
+        name: 'MerchantProfile',
+        component: () => import('@/views/merchant/Profile.vue'),
+        meta: { title: '个人中心', role: 'MERCHANT' }
       }
     ]
   },
@@ -142,6 +148,12 @@ const routes = [
         name: 'AdminSystem',
         component: () => import('@/views/admin/System.vue'),
         meta: { title: '系统管理', role: 'ADMIN' }
+      },
+      {
+        path: 'profile',
+        name: 'AdminProfile',
+        component: () => import('@/views/admin/Profile.vue'),
+        meta: { title: '个人中心', role: 'ADMIN' }
       }
     ]
   }

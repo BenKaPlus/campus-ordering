@@ -36,6 +36,10 @@
           <i class="el-icon-s-tools"></i>
           <span>系统管理</span>
         </el-menu-item>
+        <el-menu-item index="/admin/profile">
+          <i class="el-icon-user"></i>
+          <span>个人中心</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -46,9 +50,13 @@
         <div class="header-right">
           <el-dropdown @command="handleCommand">
             <span class="el-dropdown-link">
-              {{ userInfo.userName }}<i class="el-icon-arrow-down el-icon--right"></i>
+              <img v-if="userInfo.avatar" :src="userInfo.avatar" class="user-avatar">
+              <i v-else class="el-icon-user-solid user-avatar-default"></i>
+              <span class="user-name">{{ userInfo.userName }}</span>
+              <i class="el-icon-arrow-down el-icon--right"></i>
             </span>
             <el-dropdown-menu slot="dropdown">
+              <el-dropdown-item command="profile">个人中心</el-dropdown-item>
               <el-dropdown-item command="logout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </el-dropdown>
@@ -72,7 +80,9 @@ export default {
   },
   methods: {
     async handleCommand(command) {
-      if (command === 'logout') {
+      if (command === 'profile') {
+        this.$router.push('/admin/profile')
+      } else if (command === 'logout') {
         // 调用后端退出登录接口（可选），不处理错误
         logout().catch(() => {
           // 忽略后端接口错误，继续执行退出逻辑
@@ -107,5 +117,22 @@ export default {
 }
 .el-dropdown-link {
   cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 8px;
+}
+.user-avatar-default {
+  font-size: 32px;
+  color: #909399;
+  margin-right: 8px;
+}
+.user-name {
+  margin-right: 4px;
 }
 </style>

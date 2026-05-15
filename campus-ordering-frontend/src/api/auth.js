@@ -32,3 +32,12 @@ export function getCaptcha() {
     method: 'get'
   })
 }
+
+// 更新当前用户信息
+export function updateUserInfo(data) {
+  return request({
+    url: '/auth/user/info',
+    method: 'put',
+    data
+  })
+}
