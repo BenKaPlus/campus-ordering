@@ -3,19 +3,26 @@ package com.campus.ordering.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.common.ResultCode;
+import com.campus.ordering.dto.ReviewReplyDTO;
 import com.campus.ordering.entity.OrderInfo;
 import com.campus.ordering.entity.ProductInfo;
 import com.campus.ordering.entity.ShopInfo;
 import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.security.JwtTokenUtil;
 import com.campus.ordering.service.*;
+import com.campus.ordering.vo.OrderReviewVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/merchant")
@@ -33,6 +40,8 @@ public class MerchantController {
     private OrderService orderService;
     @Resource
     private PayService payService;
+    @Resource
+    private OrderReviewService orderReviewService;
 
     // ==================== 店铺接口 ====================
     @GetMapping("/shop/detail")
@@ -181,5 +190,30 @@ public class MerchantController {
         Long merchantUserId = getUserId(request);
         ShopInfo shop = shopService.getShopByMerchantId(merchantUserId);
         return Result.success(payService.getMerchantPaymentList(shop.getShopId(), payType, page, size));
+    }
+
+    // ==================== 评价接口 ====================
+    @GetMapping("/review/list")
+    @ApiOperation("获取店铺评价列表")
+    public Result<List<OrderReviewVO>> getShopReviews(HttpServletRequest request) {
+        Long merchantUserId = getUserId(request);
+        ShopInfo shop = shopService.getShopByMerchantId(merchantUserId);
+        return Result.success(orderReviewService.getShopReviews(shop.getShopId()));
+    }
+
+    @GetMapping("/review/summary")
+    @ApiOperation("获取店铺评价统计")
+    public Result<Map<String, Object>> getShopReviewSummary(HttpServletRequest request) {
+        Long merchantUserId = getUserId(request);
+        ShopInfo shop = shopService.getShopByMerchantId(merchantUserId);
+        return Result.success(orderReviewService.getShopReviewSummary(shop.getShopId()));
+    }
+
+    @PostMapping("/review/reply")
+    @ApiOperation("回复评价")
+    public Result<Void> replyReview(@Valid @RequestBody ReviewReplyDTO replyDTO, HttpServletRequest request) {
+        Long userId = getUserId(request);
+        orderReviewService.replyReview(userId, replyDTO);
+        return Result.success();
     }
 }

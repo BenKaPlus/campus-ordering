@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.entity.ProductCategory;
 import com.campus.ordering.entity.ProductInfo;
+import com.campus.ordering.service.OrderReviewService;
 import com.campus.ordering.service.PayService;
 import com.campus.ordering.service.ShopService;
 import com.campus.ordering.service.FileService;
 import com.campus.ordering.service.ProductService;
+import com.campus.ordering.vo.OrderReviewVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +43,8 @@ public class CommonController implements WebMvcConfigurer {
     private FileService fileService;
     @Resource
     private ProductService productService;
+    @Resource
+    private OrderReviewService orderReviewService;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -125,5 +129,18 @@ public class CommonController implements WebMvcConfigurer {
             params.put(entry.getKey(), entry.getValue()[0]);
         }
         return payService.aliPayCallback(params);
+    }
+
+    // ==================== 评价接口 ====================
+    @GetMapping("/review/shop/{shopId}")
+    @ApiOperation("获取店铺评价列表")
+    public Result<List<OrderReviewVO>> getShopReviews(@PathVariable Long shopId) {
+        return Result.success(orderReviewService.getShopReviews(shopId));
+    }
+
+    @GetMapping("/review/shop/{shopId}/summary")
+    @ApiOperation("获取店铺评价统计")
+    public Result<Map<String, Object>> getShopReviewSummary(@PathVariable Long shopId) {
+        return Result.success(orderReviewService.getShopReviewSummary(shopId));
     }
 }

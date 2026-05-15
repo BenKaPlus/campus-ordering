@@ -24,6 +24,10 @@
           <i class="el-icon-s-data"></i>
           <span>数据统计</span>
         </el-menu-item>
+        <el-menu-item index="/merchant/review">
+          <i class="el-icon-s-comment"></i>
+          <span>评价管理</span>
+        </el-menu-item>
         <el-menu-item index="/merchant/profile">
           <i class="el-icon-user"></i>
           <span>个人中心</span>

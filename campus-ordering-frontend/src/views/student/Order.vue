@@ -110,12 +110,14 @@
         <el-table-column prop="createTime" label="下单时间" width="160">
           <template slot-scope="scope">{{ scope.row.createTime | formatDate }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="220">
+        <el-table-column label="操作" width="300">
           <template slot-scope="scope">
             <el-button type="text" size="small" @click="viewOrderDetail(scope.row.orderId)">查看详情</el-button>
             <el-button v-if="scope.row.orderStatus === 0" type="text" size="small" @click="cancelOrder(scope.row.orderId)">取消订单</el-button>
             <el-button v-if="scope.row.orderStatus === 0" type="primary" size="small" @click="goPay(scope.row.orderId)">去支付</el-button>
             <el-button v-if="scope.row.orderStatus === 4" type="text" size="small" @click="confirmReceive(scope.row.orderId)">确认收货</el-button>
+            <el-button v-if="scope.row.orderStatus === 5 && !scope.row.isReviewed" type="success" size="small" @click="openReviewDialog(scope.row)">去评价</el-button>
+            <el-button v-if="scope.row.orderStatus === 5 && scope.row.isReviewed" type="info" size="small" @click="viewReview(scope.row.orderId)">查看评价</el-button>
             <el-button
               v-if="scope.row.orderStatus === 0 || scope.row.orderStatus === 1 || scope.row.orderStatus === 5 || scope.row.orderStatus === 6"
               type="text"
@@ -266,11 +268,79 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 评价对话框 -->
+    <el-dialog :visible.sync="reviewDialogVisible" title="订单评价" width="600px">
+      <el-form :model="reviewForm" :rules="reviewRules" ref="reviewForm" label-width="100px">
+        <el-form-item label="服务态度" prop="serviceRating">
+          <el-rate v-model="reviewForm.serviceRating" :colors="['#99A9BF', '#F7BA2A', '#FF9900']" />
+        </el-form-item>
+        <el-form-item label="配送速度" prop="deliveryRating">
+          <el-rate v-model="reviewForm.deliveryRating" :colors="['#99A9BF', '#F7BA2A', '#FF9900']" />
+        </el-form-item>
+        <el-form-item label="商品满意度" prop="productRating">
+          <el-rate v-model="reviewForm.productRating" :colors="['#99A9BF', '#F7BA2A', '#FF9900']" />
+        </el-form-item>
+        <el-form-item label="评价内容" prop="reviewText">
+          <el-input type="textarea" v-model="reviewForm.reviewText" :rows="4" placeholder="请输入评价内容" />
+        </el-form-item>
+        <el-form-item label="匿名评价" prop="isAnonymous">
+          <el-switch v-model="isAnonymous" :active-value="1" :inactive-value="0" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="reviewDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitReview" :loading="reviewSubmitting">提交评价</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 查看评价对话框 -->
+    <el-dialog :visible.sync="viewReviewDialogVisible" title="查看评价" width="600px">
+      <div v-if="currentReview" class="review-detail">
+        <div class="review-user-info">
+          <el-avatar :size="50" :src="currentReview.userAvatar" v-if="!currentReview.isAnonymous" />
+          <el-avatar :size="50" v-else />
+          <span class="user-name">{{ currentReview.isAnonymous ? '匿名用户' : currentReview.userName }}</span>
+        </div>
+        <div class="review-ratings">
+          <div class="rating-item">
+            <span class="rating-label">服务态度：</span>
+            <el-rate v-model="currentReview.serviceRating" disabled />
+          </div>
+          <div class="rating-item">
+            <span class="rating-label">配送速度：</span>
+            <el-rate v-model="currentReview.deliveryRating" disabled />
+          </div>
+          <div class="rating-item">
+            <span class="rating-label">商品满意：</span>
+            <el-rate v-model="currentReview.productRating" disabled />
+          </div>
+          <div class="rating-item">
+            <span class="rating-label">综合评分：</span>
+            <span class="rating-value">{{ currentReview.overallRating }}分</span>
+          </div>
+        </div>
+        <div class="review-text" v-if="currentReview.reviewText">
+          {{ currentReview.reviewText }}
+        </div>
+        <div class="review-replies" v-if="currentReview.replyList && currentReview.replyList.length > 0">
+          <h4>商家回复</h4>
+          <div v-for="reply in currentReview.replyList" :key="reply.replyId" class="reply-item">
+            <div class="reply-header">
+              <span class="reply-user">{{ reply.replyUserName }}</span>
+              <span class="reply-time">{{ reply.createTime }}</span>
+            </div>
+            <div class="reply-text">{{ reply.replyText }}</div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders, getPaymentList, deleteCart } from '@/api/student'
+import { createReview, getReviewByOrderId } from '@/api/review'
 
 export default {
   name: 'StudentOrder',
@@ -318,7 +388,31 @@ export default {
         totalCount: 0,
         totalAmount: 0
       },
-      selectedCartIds: []
+      selectedCartIds: [],
+      reviewDialogVisible: false,
+      viewReviewDialogVisible: false,
+      reviewSubmitting: false,
+      isAnonymous: 0,
+      currentOrderId: null,
+      currentReview: null,
+      reviewForm: {
+        orderId: null,
+        serviceRating: 5,
+        deliveryRating: 5,
+        productRating: 5,
+        reviewText: ''
+      },
+      reviewRules: {
+        serviceRating: [
+          { required: true, message: '请选择服务态度评分', trigger: 'change' }
+        ],
+        deliveryRating: [
+          { required: true, message: '请选择配送速度评分', trigger: 'change' }
+        ],
+        productRating: [
+          { required: true, message: '请选择商品满意度评分', trigger: 'change' }
+        ]
+      }
     }
   },
   computed: {
@@ -658,6 +752,50 @@ export default {
       this.paymentStats.aliAmount = aliAmount.toFixed(2)
       this.paymentStats.totalCount = this.paymentTotal
       this.paymentStats.totalAmount = (wxAmount + aliAmount).toFixed(2)
+    },
+    openReviewDialog(order) {
+      this.currentOrderId = order.orderId
+      this.reviewForm = {
+        orderId: order.orderId,
+        serviceRating: 5,
+        deliveryRating: 5,
+        productRating: 5,
+        reviewText: ''
+      }
+      this.isAnonymous = 0
+      this.reviewDialogVisible = true
+    },
+    async submitReview() {
+      this.$refs.reviewForm.validate(async (valid) => {
+        if (valid) {
+          this.reviewSubmitting = true
+          try {
+            const data = {
+              ...this.reviewForm,
+              isAnonymous: this.isAnonymous
+            }
+            await createReview(data)
+            this.$message.success('评价成功')
+            this.reviewDialogVisible = false
+            this.getOrderList()
+          } catch (error) {
+            console.error('评价失败:', error)
+          } finally {
+            this.reviewSubmitting = false
+          }
+        }
+      })
+    },
+    async viewReview(orderId) {
+      try {
+        const res = await getReviewByOrderId(orderId)
+        if (res.code === 200) {
+          this.currentReview = res.data
+          this.viewReviewDialogVisible = true
+        }
+      } catch (error) {
+        console.error('获取评价失败:', error)
+      }
     }
   }
 }
@@ -845,5 +983,60 @@ export default {
 }
 .pay-dialog-actions {
   text-align: right;
+}
+.review-user-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.review-user-info .user-name {
+  margin-left: 15px;
+  font-weight: bold;
+}
+.review-ratings {
+  margin-bottom: 20px;
+}
+.review-ratings .rating-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.review-ratings .rating-label {
+  width: 100px;
+  color: #606266;
+}
+.review-ratings .rating-value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #f56c6c;
+}
+.review-text {
+  background: #f5f7fa;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+.review-replies h4 {
+  margin-bottom: 15px;
+  color: #303133;
+}
+.reply-item {
+  background: #ecf5ff;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+.reply-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.reply-user {
+  font-weight: bold;
+  color: #409eff;
+}
+.reply-time {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

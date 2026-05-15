@@ -118,6 +118,10 @@ public class OrderInfo {
     @TableLogic
     private Integer isDeleted;
 
+    @ApiModelProperty(value = "是否已评价：0-否 1-是")
+    @TableField("is_reviewed")
+    private Integer isReviewed;
+
     @ApiModelProperty(value = "订单项列表（非数据库字段）")
     @TableField(exist = false)
     private List<OrderItem> itemList;

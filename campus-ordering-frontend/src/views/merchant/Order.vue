@@ -3,7 +3,7 @@
     <el-card>
       <div slot="header">
         <el-tabs v-model="activeTab" @tab-click="handleTabClick">
-          <el-tab-pane label="全部" name=""></el-tab-pane>
+          <el-tab-pane label="全部" name="all"></el-tab-pane>
           <el-tab-pane label="待接单" name="1"></el-tab-pane>
           <el-tab-pane label="待备餐" name="2"></el-tab-pane>
           <el-tab-pane label="配送中" name="4"></el-tab-pane>
@@ -52,7 +52,7 @@
         :total="total"
         :current-page.sync="page"
         :page-size.sync="size"
-        @current-change="handlePageChange"
+        @current-change="getOrderList"
         v-if="activeTab !== 'payment'"
       ></el-pagination>
 
@@ -139,7 +139,7 @@ export default {
   name: 'MerchantOrder',
   data() {
     return {
-      activeTab: '',
+      activeTab: 'all',
       orderList: [],
       page: 1,
       size: 10,
@@ -171,26 +171,23 @@ export default {
   methods: {
     handleTabClick(tab) {
       if (tab.name === 'payment') {
+        this.paymentPage = 1
         this.getPaymentList()
       } else {
         this.page = 1
         this.getOrderList()
       }
     },
-    handlePageChange() {
-      if (this.activeTab === 'payment') {
-        this.getPaymentList()
-      } else {
-        this.getOrderList()
-      }
-    },
     async getOrderList() {
       this.loading = true
-      const res = await getMerchantOrderList({
-        status: this.activeTab,
+      const params = {
         page: this.page,
         size: this.size
-      })
+      }
+      if (this.activeTab !== 'all') {
+        params.status = this.activeTab
+      }
+      const res = await getMerchantOrderList(params)
       if (res.code === 200) {
         this.orderList = res.data.records
         this.total = res.data.total

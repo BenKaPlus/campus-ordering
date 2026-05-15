@@ -93,6 +93,12 @@ const routes = [
         meta: { title: '数据统计', role: 'MERCHANT' }
       },
       {
+        path: 'review',
+        name: 'MerchantReview',
+        component: () => import('@/views/merchant/Review.vue'),
+        meta: { title: '评价管理', role: 'MERCHANT' }
+      },
+      {
         path: 'profile',
         name: 'MerchantProfile',
         component: () => import('@/views/merchant/Profile.vue'),

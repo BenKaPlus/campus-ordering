@@ -8,6 +8,7 @@ import com.campus.ordering.dto.BatchOrderCreateDTO;
 import com.campus.ordering.dto.CartSettleDTO;
 import com.campus.ordering.dto.OrderCreateDTO;
 import com.campus.ordering.dto.OrderDeleteDTO;
+import com.campus.ordering.dto.OrderReviewDTO;
 import com.campus.ordering.dto.ShopPaymentDTO;
 import com.campus.ordering.dto.StudentInfoUpdateDTO;
 import com.campus.ordering.entity.OrderInfo;
@@ -22,6 +23,7 @@ import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.security.JwtTokenUtil;
 import com.campus.ordering.service.*;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.campus.ordering.vo.OrderReviewVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -55,6 +57,8 @@ public class StudentController {
     private StudentInfoService studentInfoService;
     @Resource
     private SysUserMapper sysUserMapper;
+    @Resource
+    private OrderReviewService orderReviewService;
 
     // ==================== 购物车接口 ====================
     @PostMapping("/cart/add")
@@ -245,6 +249,22 @@ public class StudentController {
         Long userId = getUserId(request);
         studentInfoService.updateStudentInfo(userId, dto);
         return Result.success();
+    }
+
+    // ==================== 评价接口 ====================
+    @PostMapping("/review/create")
+    @ApiOperation("创建评价")
+    public Result<Void> createReview(@Valid @RequestBody OrderReviewDTO reviewDTO, HttpServletRequest request) {
+        Long userId = getUserId(request);
+        orderReviewService.createReview(userId, reviewDTO);
+        return Result.success();
+    }
+
+    @GetMapping("/review/order/{orderId}")
+    @ApiOperation("根据订单ID获取评价")
+    public Result<OrderReviewVO> getReviewByOrderId(@PathVariable Long orderId) {
+        OrderReviewVO reviewVO = orderReviewService.getReviewByOrderId(orderId);
+        return Result.success(reviewVO);
     }
 
     // 私有方法：获取当前用户 ID
