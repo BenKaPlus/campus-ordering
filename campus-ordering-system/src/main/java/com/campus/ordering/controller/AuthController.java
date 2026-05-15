@@ -130,24 +130,29 @@ public class AuthController {
     @ApiOperation("更新当前用户信息")
     @PreAuthorize("isAuthenticated()")
     public Result<Void> updateUserInfo(@RequestBody UserInfoUpdateDTO dto, Principal principal) {
-        String userNo = principal.getName();
-        SysUser user = sysUserMapper.selectByUserNo(userNo);
-        if (user == null) {
-            return Result.error("用户不存在");
+        try {
+            String userNo = principal.getName();
+            SysUser user = sysUserMapper.selectByUserNo(userNo);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+            
+            if (dto.getPhone() != null) {
+                user.setPhone(dto.getPhone());
+            }
+            if (dto.getUserName() != null) {
+                user.setUserName(dto.getUserName());
+            }
+            if (dto.getAvatar() != null) {
+                user.setAvatar(dto.getAvatar());
+            }
+            
+            sysUserMapper.updateById(user);
+            return Result.success();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("更新失败: " + e.getMessage());
         }
-        
-        if (dto.getPhone() != null) {
-            user.setPhone(dto.getPhone());
-        }
-        if (dto.getUserName() != null) {
-            user.setUserName(dto.getUserName());
-        }
-        if (dto.getAvatar() != null) {
-            user.setAvatar(dto.getAvatar());
-        }
-        
-        sysUserMapper.updateById(user);
-        return Result.success();
     }
 
     @GetMapping("/test/password")
