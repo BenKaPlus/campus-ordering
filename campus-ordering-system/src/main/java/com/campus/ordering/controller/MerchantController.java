@@ -195,7 +195,10 @@ public class MerchantController {
     // ==================== 评价接口 ====================
     @GetMapping("/review/list")
     @ApiOperation("获取店铺评价列表")
-    public Result<List<OrderReviewVO>> getShopReviews(HttpServletRequest request) {
+    public Result<List<OrderReviewVO>> getShopReviews(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            HttpServletRequest request) {
         Long merchantUserId = getUserId(request);
         ShopInfo shop = shopService.getShopByMerchantId(merchantUserId);
         return Result.success(orderReviewService.getShopReviews(shop.getShopId()));

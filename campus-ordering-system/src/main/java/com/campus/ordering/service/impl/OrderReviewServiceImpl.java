@@ -161,18 +161,18 @@ public class OrderReviewServiceImpl extends ServiceImpl<OrderReviewMapper, Order
 
         Map<String, Object> summary = new HashMap<>();
         if (reviewList.isEmpty()) {
-            summary.put("totalReviews", 0);
-            summary.put("avgOverallRating", BigDecimal.ZERO);
+            summary.put("totalCount", 0);
+            summary.put("overallRating", BigDecimal.ZERO);
             summary.put("avgServiceRating", BigDecimal.ZERO);
             summary.put("avgDeliveryRating", BigDecimal.ZERO);
             summary.put("avgProductRating", BigDecimal.ZERO);
         } else {
-            summary.put("totalReviews", reviewList.size());
+            summary.put("totalCount", reviewList.size());
 
             BigDecimal totalOverall = reviewList.stream()
                     .map(OrderReview::getOverallRating)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            summary.put("avgOverallRating", totalOverall.divide(
+            summary.put("overallRating", totalOverall.divide(
                     BigDecimal.valueOf(reviewList.size()), 1, RoundingMode.HALF_UP));
 
             BigDecimal totalService = reviewList.stream()

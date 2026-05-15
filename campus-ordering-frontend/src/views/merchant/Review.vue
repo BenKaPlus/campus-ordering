@@ -221,10 +221,18 @@ export default {
     async getReviewList() {
       this.loading = true;
       try {
-        const res = await getMerchantShopReviews();
+        const res = await getMerchantShopReviews({
+          page: this.page,
+          size: this.size
+        });
         if (res.code === 200) {
-          this.reviewList = res.data || [];
-          this.total = res.data ? res.data.length : 0;
+          if (res.data.records) {
+            this.reviewList = res.data.records || [];
+            this.total = res.data.total || 0;
+          } else {
+            this.reviewList = res.data || [];
+            this.total = res.data ? res.data.length : 0;
+          }
         }
       } catch (error) {
         console.error('获取评价列表失败:', error);

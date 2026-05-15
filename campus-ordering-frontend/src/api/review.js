@@ -21,8 +21,8 @@ export function getShopReviewSummary(shopId) {
 }
 
 // 商家获取店铺评价列表
-export function getMerchantShopReviews() {
-  return request({ url: '/merchant/review/list', method: 'get' })
+export function getMerchantShopReviews(params) {
+  return request({ url: '/merchant/review/list', method: 'get', params })
 }
 
 // 商家获取店铺评价统计
