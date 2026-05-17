@@ -6,7 +6,6 @@
       <el-tabs v-model="activeTab">
         <el-tab-pane label="基本信息" name="info">
           <el-form ref="infoForm" :model="studentInfo" label-width="100px" class="info-form">
-            <!-- 头像区域 -->
             <el-row>
               <el-col :span="24">
                 <el-form-item label="头像">
@@ -139,6 +138,200 @@
             </el-form-item>
           </el-form>
         </el-tab-pane>
+
+        <el-tab-pane label="入驻申请" name="merchant">
+          <div v-if="merchantLoading" class="loading-container">
+            <el-loading-spinner size="large"></el-loading-spinner>
+          </div>
+          <div v-else-if="settleStatus === -1" class="no-apply">
+            <el-empty description="您还没有提交入驻申请">
+              <el-button type="primary" @click="goToMerchantRegister">前往商家入驻</el-button>
+            </el-empty>
+          </div>
+          <div v-else-if="settleStatus === 0" class="apply-detail">
+            <el-alert title="入驻申请待审核" type="info" :closable="false" show-icon>
+              <p>预计3-5天内出审核结果，届时您可正常登录系统</p>
+            </el-alert>
+            <el-divider content-position="left">申请信息</el-divider>
+            <el-form label-width="120px" class="apply-form">
+              <el-form-item label="申请人姓名">
+                <span>{{ applyForm.applicantName || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="联系电话">
+                <span>{{ applyForm.applicantPhone || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="店铺名称">
+                <span>{{ applyForm.shopName || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="店铺描述">
+                <span>{{ applyForm.shopDescription || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="店铺类型">
+                <span>{{ getShopTypeName(applyForm.shopType) }}</span>
+              </el-form-item>
+              <el-form-item label="预计配送费">
+                <span>¥{{ applyForm.deliveryFee || 0 }}</span>
+              </el-form-item>
+              <el-form-item label="营业执照">
+                <el-image
+                  v-if="applyForm.businessLicense"
+                  :src="applyForm.businessLicense"
+                  class="license-image"
+                  :preview-src-list="[applyForm.businessLicense]"
+                  fit="contain"
+                />
+                <span v-else>-</span>
+              </el-form-item>
+              <el-form-item label="身份证正面">
+                <el-image
+                  v-if="applyForm.idCardFront"
+                  :src="applyForm.idCardFront"
+                  class="license-image"
+                  :preview-src-list="[applyForm.idCardFront]"
+                  fit="contain"
+                />
+                <span v-else>-</span>
+              </el-form-item>
+              <el-form-item label="身份证反面">
+                <el-image
+                  v-if="applyForm.idCardBack"
+                  :src="applyForm.idCardBack"
+                  class="license-image"
+                  :preview-src-list="[applyForm.idCardBack]"
+                  fit="contain"
+                />
+                <span v-else>-</span>
+              </el-form-item>
+              <el-form-item label="审核意见">
+                <el-tag type="info">暂无审核意见</el-tag>
+              </el-form-item>
+            </el-form>
+          </div>
+          <div v-else-if="settleStatus === 2" class="apply-detail">
+            <el-alert title="入驻申请未通过" type="warning" :closable="false" show-icon>
+              <p>请根据审核意见修改申请信息后重新提交</p>
+            </el-alert>
+            <el-divider content-position="left">申请信息</el-divider>
+            <el-form label-width="120px" class="apply-form">
+              <el-form-item label="申请人姓名">
+                <el-input v-if="isEditing" v-model="applyForm.applicantName" />
+                <span v-else>{{ applyForm.applicantName || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="联系电话">
+                <el-input v-if="isEditing" v-model="applyForm.applicantPhone" />
+                <span v-else>{{ applyForm.applicantPhone || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="店铺名称">
+                <el-input v-if="isEditing" v-model="applyForm.shopName" />
+                <span v-else>{{ applyForm.shopName || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="店铺描述">
+                <el-input v-if="isEditing" v-model="applyForm.shopDescription" type="textarea" :rows="2" />
+                <span v-else>{{ applyForm.shopDescription || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="店铺类型">
+                <el-select v-if="isEditing" v-model="applyForm.shopType" style="width: 100%;">
+                  <el-option label="快餐" :value="1" />
+                  <el-option label="小吃" :value="2" />
+                  <el-option label="饮品" :value="3" />
+                  <el-option label="水果" :value="4" />
+                  <el-option label="超市" :value="5" />
+                  <el-option label="其他" :value="6" />
+                </el-select>
+                <span v-else>{{ getShopTypeName(applyForm.shopType) }}</span>
+              </el-form-item>
+              <el-form-item label="预计配送费">
+                <el-input-number v-if="isEditing" v-model="applyForm.deliveryFee" :min="0" :precision="2" :step="0.5" style="width: 100%;" />
+                <span v-else>¥{{ applyForm.deliveryFee || 0 }}</span>
+              </el-form-item>
+              <el-form-item label="营业执照">
+                <el-upload
+                  v-if="isEditing"
+                  class="license-uploader"
+                  :show-file-list="false"
+                  :before-upload="(file) => beforeUpload(file, 'businessLicense')"
+                  :http-request="(option) => uploadFile(option, 'businessLicense')"
+                >
+                  <img v-if="applyForm.businessLicense" :src="applyForm.businessLicense" class="license-image">
+                  <i v-else class="el-icon-plus license-uploader-icon"></i>
+                </el-upload>
+                <el-image
+                  v-else-if="applyForm.businessLicense"
+                  :src="applyForm.businessLicense"
+                  class="license-image"
+                  :preview-src-list="[applyForm.businessLicense]"
+                  fit="contain"
+                />
+                <span v-else>-</span>
+              </el-form-item>
+              <el-form-item label="身份证正面">
+                <el-upload
+                  v-if="isEditing"
+                  class="license-uploader"
+                  :show-file-list="false"
+                  :before-upload="(file) => beforeUpload(file, 'idCardFront')"
+                  :http-request="(option) => uploadFile(option, 'idCardFront')"
+                >
+                  <img v-if="applyForm.idCardFront" :src="applyForm.idCardFront" class="license-image">
+                  <i v-else class="el-icon-plus license-uploader-icon"></i>
+                </el-upload>
+                <el-image
+                  v-else-if="applyForm.idCardFront"
+                  :src="applyForm.idCardFront"
+                  class="license-image"
+                  :preview-src-list="[applyForm.idCardFront]"
+                  fit="contain"
+                />
+                <span v-else>-</span>
+              </el-form-item>
+              <el-form-item label="身份证反面">
+                <el-upload
+                  v-if="isEditing"
+                  class="license-uploader"
+                  :show-file-list="false"
+                  :before-upload="(file) => beforeUpload(file, 'idCardBack')"
+                  :http-request="(option) => uploadFile(option, 'idCardBack')"
+                >
+                  <img v-if="applyForm.idCardBack" :src="applyForm.idCardBack" class="license-image">
+                  <i v-else class="el-icon-plus license-uploader-icon"></i>
+                </el-upload>
+                <el-image
+                  v-else-if="applyForm.idCardBack"
+                  :src="applyForm.idCardBack"
+                  class="license-image"
+                  :preview-src-list="[applyForm.idCardBack]"
+                  fit="contain"
+                />
+                <span v-else>-</span>
+              </el-form-item>
+              <el-form-item label="审核意见">
+                <el-tag type="warning">{{ applyInfo.auditRemark || '暂无审核意见' }}</el-tag>
+              </el-form-item>
+            </el-form>
+            <div class="button-group">
+              <el-button v-if="!isEditing" type="primary" @click="startEdit">修改申请</el-button>
+              <template v-else>
+                <el-button type="primary" @click="submitEdit" :loading="submitting">重新提交</el-button>
+                <el-button @click="cancelEdit">取消</el-button>
+              </template>
+            </div>
+          </div>
+          <div v-else-if="settleStatus === 1" class="apply-detail">
+            <el-alert title="恭喜！您的入驻申请已通过审核" type="success" :closable="false" show-icon>
+              <p>您已成为商家，可以正常使用商家端功能</p>
+              <el-button type="primary" size="small" @click="goToMerchant">前往商家端</el-button>
+            </el-alert>
+            <el-divider content-position="left">申请信息</el-divider>
+            <el-form label-width="120px" class="apply-form">
+              <el-form-item label="店铺名称">
+                <span>{{ applyForm.shopName || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="店铺类型">
+                <span>{{ getShopTypeName(applyForm.shopType) }}</span>
+              </el-form-item>
+            </el-form>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -173,12 +366,12 @@
 <script>
 import { mapGetters } from 'vuex'
 import { getStudentInfo, updateStudentInfo, getAddressList, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '@/api/student'
-import { updatePassword } from '@/api/auth'
+import { updatePassword, getCurrentUserApply, updateApply } from '@/api/auth'
+import { uploadImage } from '@/api/common'
 
 export default {
   name: 'StudentProfile',
   data() {
-    // 校验两次密码是否一致
     const validateConfirmPassword = (rule, value, callback) => {
       if (value !== this.passwordForm.newPassword) {
         callback(new Error('两次输入的密码不一致'))
@@ -233,13 +426,44 @@ export default {
         campusArea: [{ required: true, message: '请选择校区', trigger: 'change' }],
         addressDetail: [{ required: true, message: '请输入详细地址', trigger: 'blur' }]
       },
-      uploadHeaders: {}
+      uploadHeaders: {},
+      merchantLoading: false,
+      settleStatus: -1,
+      applyInfo: null,
+      applyForm: {
+        applicantName: '',
+        applicantPhone: '',
+        shopName: '',
+        shopDescription: '',
+        shopType: null,
+        deliveryFee: 0,
+        businessLicense: '',
+        idCardFront: '',
+        idCardBack: ''
+      },
+      isEditing: false,
+      submitting: false,
+      shopTypes: {
+        1: '快餐',
+        2: '小吃',
+        3: '饮品',
+        4: '水果',
+        5: '超市',
+        6: '其他'
+      }
     }
   },
   computed: {
     ...mapGetters(['userInfo', 'roles', 'token']),
     roleCode() {
       return this.roles && this.roles.length > 0 ? this.roles[0] : ''
+    }
+  },
+  watch: {
+    activeTab(newVal) {
+      if (newVal === 'merchant') {
+        this.loadMerchantApply()
+      }
     }
   },
   mounted() {
@@ -299,7 +523,6 @@ export default {
         const res = await updateStudentInfo(this.studentInfo)
         if (res.code === 200) {
           this.$message.success('个人信息更新成功')
-          // 更新store中的用户信息
           await this.$store.dispatch('getUserInfo')
           this.loadStudentInfo()
         } else {
@@ -407,7 +630,6 @@ export default {
         if (res.code === 200) {
           this.$message.success('密码修改成功，请重新登录')
           this.resetPasswordForm()
-          // 退出登录
           this.$store.dispatch('logout')
           this.$router.push('/login')
         } else {
@@ -428,6 +650,109 @@ export default {
         confirmPassword: ''
       }
       this.$refs.passwordForm && this.$refs.passwordForm.resetFields()
+    },
+    async loadMerchantApply() {
+      this.merchantLoading = true
+      try {
+        const res = await getCurrentUserApply()
+        if (res.code === 200 && res.data) {
+          this.applyInfo = res.data
+          this.settleStatus = res.data.auditStatus
+          this.applyForm = {
+            applicantName: res.data.applicantName || '',
+            applicantPhone: res.data.applicantPhone || '',
+            shopName: res.data.shopName || '',
+            shopDescription: res.data.shopDescription || '',
+            shopType: res.data.shopType || null,
+            deliveryFee: res.data.deliveryFee || 0,
+            businessLicense: res.data.businessLicense || '',
+            idCardFront: res.data.idCardFront || '',
+            idCardBack: res.data.idCardBack || ''
+          }
+        } else {
+          this.settleStatus = -1
+        }
+      } catch (error) {
+        this.settleStatus = -1
+      } finally {
+        this.merchantLoading = false
+      }
+    },
+    getShopTypeName(type) {
+      return this.shopTypes[type] || '-'
+    },
+    startEdit() {
+      this.isEditing = true
+    },
+    cancelEdit() {
+      this.isEditing = false
+      if (this.applyInfo) {
+        this.applyForm = {
+          applicantName: this.applyInfo.applicantName || '',
+          applicantPhone: this.applyInfo.applicantPhone || '',
+          shopName: this.applyInfo.shopName || '',
+          shopDescription: this.applyInfo.shopDescription || '',
+          shopType: this.applyInfo.shopType || null,
+          deliveryFee: this.applyInfo.deliveryFee || 0,
+          businessLicense: this.applyInfo.businessLicense || '',
+          idCardFront: this.applyInfo.idCardFront || '',
+          idCardBack: this.applyInfo.idCardBack || ''
+        }
+      }
+    },
+    async submitEdit() {
+      this.submitting = true
+      try {
+        await updateApply({
+          shopName: this.applyForm.shopName,
+          shopDescription: this.applyForm.shopDescription,
+          shopType: this.applyForm.shopType,
+          deliveryFee: this.applyForm.deliveryFee,
+          businessLicense: this.applyForm.businessLicense,
+          idCardFront: this.applyForm.idCardFront,
+          idCardBack: this.applyForm.idCardBack
+        })
+        this.$message.success('重新提交成功')
+        this.isEditing = false
+        await this.loadMerchantApply()
+      } catch (error) {
+        const errorMsg = error.response?.data?.msg || error.response?.data?.message || error.message || '提交失败'
+        this.$message.error(errorMsg)
+      } finally {
+        this.submitting = false
+      }
+    },
+    beforeUpload(file, field) {
+      const isImage = file.type.startsWith('image/')
+      const isLt5M = file.size / 1024 / 1024 < 5
+      if (!isImage) {
+        this.$message.error('只能上传图片文件')
+        return false
+      }
+      if (!isLt5M) {
+        this.$message.error('图片大小不能超过 5MB')
+        return false
+      }
+      return true
+    },
+    async uploadFile(option, field) {
+      try {
+        const res = await uploadImage(option.file)
+        if (res.code === 200) {
+          this.applyForm[field] = res.data
+          this.$message.success('上传成功')
+        } else {
+          this.$message.error(res.msg || '上传失败')
+        }
+      } catch (error) {
+        this.$message.error('上传失败')
+      }
+    },
+    goToMerchant() {
+      this.$router.push('/merchant')
+    },
+    goToMerchantRegister() {
+      this.$router.push('/merchant')
     }
   }
 }
@@ -470,13 +795,58 @@ export default {
 .avatar {
   width: 100px;
   height: 100px;
-  display: block;
-  border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .upload-tip {
+  margin-top: 5px;
   font-size: 12px;
   color: #909399;
-  margin-top: 8px;
+}
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px;
+}
+.no-apply {
+  padding: 50px;
+  text-align: center;
+}
+.apply-detail {
+  padding: 20px 0;
+}
+.apply-form {
+  max-width: 600px;
+  margin-top: 20px;
+}
+.license-uploader {
+  width: 200px;
+  height: 150px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.license-uploader:hover {
+  border-color: #409EFF;
+}
+.license-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+}
+.license-image {
+  width: 200px;
+  height: 150px;
+  object-fit: contain;
+}
+.button-group {
+  margin-top: 20px;
+  text-align: center;
+}
+.button-group .el-button {
+  margin: 0 10px;
 }
 </style>
