@@ -31,7 +31,7 @@ router.beforeEach((to, from, next) => {
   const token = auth.getToken()
   
   // 公开页面（无需登录）
-  const publicPages = ['/login', '/register/student', '/register/merchant']
+  const publicPages = ['/login', '/register/student', '/register/merchant', '/forgot-password']
   const isPublicPage = publicPages.includes(to.path)
   
   // 访问公开页面

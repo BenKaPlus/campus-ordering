@@ -13,11 +13,9 @@
         <el-form-item label="手机号" prop="phone">
           <el-input v-model="form.phone" placeholder="请输入注册时的手机号"></el-input>
         </el-form-item>
-        <el-form-item label="验证码" prop="code">
-          <el-input v-model="form.code" placeholder="请输入验证码" style="width: 150px;"></el-input>
-          <el-button @click="sendCode" :disabled="countdown > 0" style="margin-left: 10px;">
-            {{ countdown > 0 ? countdown + 's' : '发送验证码' }}
-          </el-button>
+        <el-form-item label="验证码" prop="captcha">
+          <el-input v-model="form.captcha" placeholder="请输入验证码" style="width: 150px;"></el-input>
+          <img :src="captchaImg" @click="refreshCaptcha" class="captcha-img" alt="验证码">
         </el-form-item>
         <el-form-item label="新密码" prop="newPassword">
           <el-input v-model="form.newPassword" type="password" placeholder="请输入新密码" show-password></el-input>
@@ -39,7 +37,7 @@
 </template>
 
 <script>
-import { sendResetCode, resetPassword } from '@/api/auth'
+import { resetPassword, getCaptcha } from '@/api/auth'
 
 export default {
   name: 'ForgotPassword',
@@ -55,7 +53,8 @@ export default {
       form: {
         userNo: '',
         phone: '',
-        code: '',
+        captcha: '',
+        captchaKey: '',
         newPassword: '',
         confirmPassword: ''
       },
@@ -65,7 +64,7 @@ export default {
           { required: true, message: '请输入手机号', trigger: 'blur' },
           { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
         ],
-        code: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
+        captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
         newPassword: [
           { required: true, message: '请输入新密码', trigger: 'blur' },
           { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
@@ -75,33 +74,19 @@ export default {
           { validator: validateConfirmPassword, trigger: 'blur' }
         ]
       },
-      loading: false,
-      countdown: 0
+      captchaImg: '',
+      loading: false
     }
   },
+  created() {
+    this.refreshCaptcha()
+  },
   methods: {
-    async sendCode() {
-      if (!this.form.userNo) {
-        this.$message.error('请先输入账号')
-        return
-      }
-      if (!this.form.phone) {
-        this.$message.error('请先输入手机号')
-        return
-      }
-      try {
-        await sendResetCode({ userNo: this.form.userNo, phone: this.form.phone })
-        this.$message.success('验证码已发送，请查收')
-        this.countdown = 60
-        const timer = setInterval(() => {
-          this.countdown--
-          if (this.countdown <= 0) {
-            clearInterval(timer)
-          }
-        }, 1000)
-      } catch (e) {
-        const errorMsg = e.response?.data?.msg || e.message || '发送验证码失败'
-        this.$message.error(errorMsg)
+    async refreshCaptcha() {
+      const res = await getCaptcha()
+      if (res.code === 200) {
+        this.captchaImg = 'data:image/png;base64,' + res.data.captchaImage
+        this.form.captchaKey = res.data.captchaKey
       }
     },
     async handleReset() {
@@ -112,7 +97,8 @@ export default {
             await resetPassword({
               userNo: this.form.userNo,
               phone: this.form.phone,
-              code: this.form.code,
+              captchaKey: this.form.captchaKey,
+              captcha: this.form.captcha,
               newPassword: this.form.newPassword
             })
             this.$message.success('密码重置成功，请使用新密码登录')
@@ -120,6 +106,7 @@ export default {
           } catch (e) {
             const errorMsg = e.response?.data?.msg || e.message || '重置密码失败'
             this.$message.error(errorMsg)
+            this.refreshCaptcha()
           } finally {
             this.loading = false
           }
@@ -132,82 +119,57 @@ export default {
 
 <style scoped>
 .login-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%2300966d" fill-opacity="0.7" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,250.7C960,235,1056,181,1152,165.3C1248,149,1344,171,1392,181.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat;
-  background-size: cover;
   display: flex;
   justify-content: center;
   align-items: center;
+  height: 100vh;
+  background-image: url('~@/assets/背景图.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
 }
-
 .login-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.1);
+  bottom: 0;
+  right: 0;
+  width: 300px;
+  height: 100px;
+  background-color: #f5f7fa;
+  z-index: 1;
 }
-
 .login-card {
-  position: relative;
   width: 450px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  background-color: rgba(255, 255, 255, 0.95);
+  position: relative;
+  z-index: 2;
 }
-
 .login-header {
   text-align: center;
 }
-
 .login-header h2 {
   margin: 0;
   color: #00967d;
 }
-
 .subtitle {
   margin: 10px 0 0;
   color: #999;
   font-size: 14px;
 }
-
 .captcha-img {
-  width: 100px;
+  width: 120px;
   height: 40px;
   cursor: pointer;
   margin-left: 10px;
   vertical-align: middle;
 }
-
-.register-links {
-  text-align: center;
-  font-size: 14px;
-  color: #666;
-}
-
-.register-link {
-  color: #00967d;
-  text-decoration: none;
-}
-
-.register-link:hover {
-  text-decoration: underline;
-}
-
 .back-login {
   text-align: center;
 }
-
 .back-link {
-  color: #00967d;
+  color: #409EFF;
   text-decoration: none;
 }
-
 .back-link:hover {
   text-decoration: underline;
 }
