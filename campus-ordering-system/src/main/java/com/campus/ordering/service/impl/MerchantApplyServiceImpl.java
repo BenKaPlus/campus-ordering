@@ -53,7 +53,7 @@ public class MerchantApplyServiceImpl implements MerchantApplyService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void auditApply(Long applyId, Integer auditStatus, String auditRemark) {
+    public void auditApply(Long applyId, Integer auditStatus, String auditRemark, Long auditUserId) {
         MerchantApply apply = merchantApplyMapper.selectById(applyId);
         if (apply == null) {
             throw new BusinessException(ResultCode.ERROR, "申请不存在");
@@ -65,6 +65,7 @@ public class MerchantApplyServiceImpl implements MerchantApplyService {
         apply.setAuditStatus(auditStatus);
         apply.setAuditRemark(auditRemark);
         apply.setAuditTime(LocalDateTime.now());
+        apply.setAuditUserId(auditUserId);
         apply.setUpdateTime(LocalDateTime.now());
         merchantApplyMapper.updateById(apply);
 

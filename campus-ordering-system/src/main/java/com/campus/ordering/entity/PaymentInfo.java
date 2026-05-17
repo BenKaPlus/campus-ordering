@@ -48,10 +48,6 @@ public class PaymentInfo {
     @TableField("pay_time")
     private LocalDateTime payTime;
 
-    @ApiModelProperty(value = "支付回调原始数据")
-    @TableField("callback_content")
-    private String callbackContent;
-
     @ApiModelProperty(value = "创建时间")
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;

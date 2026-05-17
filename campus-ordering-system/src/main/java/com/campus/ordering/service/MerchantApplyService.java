@@ -13,7 +13,7 @@ public interface MerchantApplyService {
     /**
      * 审核商家申请
      */
-    void auditApply(Long applyId, Integer auditStatus, String auditRemark);
+    void auditApply(Long applyId, Integer auditStatus, String auditRemark, Long auditUserId);
 
     /**
      * 获取当前用户的入驻申请

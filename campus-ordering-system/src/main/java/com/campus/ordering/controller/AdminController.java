@@ -1,12 +1,16 @@
 package com.campus.ordering.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.campus.ordering.common.BusinessException;
 import com.campus.ordering.common.Result;
+import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.entity.MerchantApply;
 import com.campus.ordering.entity.OrderInfo;
 import com.campus.ordering.entity.ProductInfo;
 import com.campus.ordering.entity.ShopInfo;
 import com.campus.ordering.entity.SysUser;
+import com.campus.ordering.mapper.SysUserMapper;
 import com.campus.ordering.service.MerchantApplyService;
 import com.campus.ordering.service.OrderService;
 import com.campus.ordering.service.ProductService;
@@ -18,6 +22,15 @@ import com.campus.ordering.vo.AdminProductVO;
 import com.campus.ordering.vo.AdminShopVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +55,8 @@ public class AdminController {
     private MerchantApplyService merchantApplyService;
     @Resource
     private com.campus.ordering.service.PayService payService;
+    @Resource
+    private SysUserMapper sysUserMapper;
 
     // ==================== 用户管理接口 ====================
     @GetMapping("/user/list")
@@ -181,8 +196,22 @@ public class AdminController {
             @RequestParam Long applyId,
             @RequestParam Integer auditStatus,
             @RequestParam(required = false) String auditRemark) {
-        merchantApplyService.auditApply(applyId, auditStatus, auditRemark);
+        Long auditUserId = getCurrentUserId();
+        merchantApplyService.auditApply(applyId, auditStatus, auditRemark, auditUserId);
         return Result.success();
+    }
+
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
+            String username = ((UserDetails) authentication.getPrincipal()).getUsername();
+            SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                    .eq(SysUser::getUserNo, username));
+            if (user != null) {
+                return user.getUserId();
+            }
+        }
+        throw new BusinessException(ResultCode.ERROR, "无法获取当前用户信息");
     }
 
     // ==================== 支付记录管理接口 ====================

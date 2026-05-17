@@ -567,7 +567,6 @@ CREATE TABLE `payment_info` (
   `pay_amount` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT '支付金额',
   `pay_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '支付状态：0-待支付 1-支付成功 2-支付失败 3-已关闭 4-已退款',
   `pay_time` datetime DEFAULT NULL COMMENT '支付完成时间',
-  `callback_content` text COLLATE utf8mb4_unicode_ci COMMENT '支付回调原始数据',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `is_deleted` tinyint(4) NOT NULL DEFAULT '0' COMMENT '逻辑删除',
