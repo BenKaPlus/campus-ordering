@@ -13,6 +13,7 @@ import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.mapper.*;
 import com.campus.ordering.service.OrderService;
 import com.campus.ordering.service.OrderWebSocketService;
+import com.campus.ordering.service.SysConfigService;
 import com.campus.ordering.vo.AdminOrderDetailVO;
 import com.campus.ordering.vo.AdminOrderVO;
 import com.campus.ordering.vo.OrderItemVO;
@@ -61,8 +62,8 @@ public class OrderServiceImpl implements OrderService {
     @Resource
     private OrderWebSocketService orderWebSocketService;
 
-    @Value("${system.order.expire-minutes}")
-    private Integer expireMinutes;
+    @Resource
+    private SysConfigService sysConfigService;
 
     @Override
     public Object getSettleInfo(List<Long> cartIds, Long userId) {
@@ -206,10 +207,12 @@ public class OrderServiceImpl implements OrderService {
         order.setDeliveryFee(shop.getDeliveryFee());
         order.setTotalAmount(productAmount.add(shop.getDeliveryFee()));
         order.setPayAmount(order.getTotalAmount());
-        order.setOrderStatus(0); // 待支付
-        order.setPayStatus(0); // 未支付
-        order.setPayType(1); // 默认微信支付
+        order.setOrderStatus(0);
+        order.setPayStatus(0);
+        order.setPayType(1);
         order.setOrderRemark(dto.getOrderRemark());
+        
+        int expireMinutes = getOrderExpireMinutes();
         order.setExpireTime(LocalDateTime.now().plusMinutes(expireMinutes));
         orderInfoMapper.insert(order);
 
@@ -334,7 +337,9 @@ public class OrderServiceImpl implements OrderService {
             order.setPayStatus(0);
             order.setPayType("wx".equals(shopOrder.getPayType()) ? 1 : 2);
             order.setOrderRemark(shopOrder.getOrderRemark());
-            order.setExpireTime(LocalDateTime.now().plusMinutes(15));
+            
+            int expireMinutes = getOrderExpireMinutes();
+            order.setExpireTime(LocalDateTime.now().plusMinutes(expireMinutes));
             orderInfoMapper.insert(order);
 
             for (OrderItem item : itemList) {
@@ -931,5 +936,15 @@ public class OrderServiceImpl implements OrderService {
             String.format("订单 %s 有退款申请，原因：%s", order.getOrderNo(), refundReason),
             null
         );
+    }
+
+    private int getOrderExpireMinutes() {
+        try {
+            String value = sysConfigService.getConfigValue("order_pay_expire_minutes", "30");
+            return Integer.parseInt(value);
+        } catch (Exception e) {
+            log.warn("读取订单支付过期时间配置失败，使用默认值30分钟", e);
+            return 30;
+        }
     }
 }

@@ -3,9 +3,11 @@ package com.campus.ordering;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@MapperScan("com.campus.ordering.mapper") // 扫描Mapper接口
+@MapperScan("com.campus.ordering.mapper")
+@EnableScheduling
 public class CampusOrderingSystemApplication {
 
     public static void main(String[] args) {
