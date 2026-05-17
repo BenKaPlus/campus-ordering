@@ -1,7 +1,8 @@
 <template>
-  <el-container class="merchant-layout">
+  <div class="merchant-layout-wrapper">
     <notice-bar />
-    <el-aside v-if="settleStatus === 1" width="200px">
+    <el-container class="merchant-layout">
+      <el-aside v-if="settleStatus === 1" width="200px">
       <el-menu
         :default-active="$route.path"
         router
@@ -265,6 +266,7 @@
       </el-main>
     </el-container>
   </el-container>
+  </div>
 </template>
 
 <script>

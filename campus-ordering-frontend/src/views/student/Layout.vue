@@ -1,7 +1,8 @@
 <template>
-  <el-container class="student-layout">
+  <div class="student-layout-wrapper">
     <notice-bar />
-    <el-aside width="200px">
+    <el-container class="student-layout">
+      <el-aside width="200px">
       <el-menu
         :default-active="$route.path"
         router
@@ -51,6 +52,7 @@
       </el-main>
     </el-container>
   </el-container>
+  </div>
 </template>
 
 <script>
