@@ -40,7 +40,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/student")
 @Api(tags = "学生端接口")
-@PreAuthorize("hasRole('STUDENT')")
+@PreAuthorize("hasAnyRole('STUDENT', 'MERCHANT', 'PENDING_MERCHANT')")
 public class StudentController {
 
     @Resource
