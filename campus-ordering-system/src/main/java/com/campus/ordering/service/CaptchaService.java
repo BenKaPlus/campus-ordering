@@ -10,6 +10,14 @@ public interface CaptchaService {
     Map<String, Object> generateCaptcha();
 
     /**
+     * 验证图形验证码
+     * @param captchaKey 验证码 key
+     * @param code 用户输入的验证码
+     * @return 验证结果
+     */
+    boolean validateCaptcha(String captchaKey, String code);
+
+    /**
      * 发送手机验证码（用于忘记密码）
      * @param phone 手机号
      * @return 验证码key，用于后续验证

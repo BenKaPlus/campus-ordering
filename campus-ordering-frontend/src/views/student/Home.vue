@@ -28,7 +28,7 @@
     <div class="shop-list" v-if="searchType === 'shop'">
       <el-card v-for="shop in shopList" :key="shop.shopId" class="shop-card" @click.native="goShopDetail(shop.shopId)">
         <div class="shop-info">
-          <img :src="shop.shopLogo" class="shop-logo" alt="店铺logo">
+          <img :src="shop.shopLogo" class="shop-logo" alt="店铺logo" @error="shop.shopLogo = '/placeholder.png'">
           <div class="shop-detail">
             <h3>{{ shop.shopName }}</h3>
             <p class="shop-desc">{{ shop.shopDesc }}</p>
@@ -47,7 +47,7 @@
       <el-card v-for="product in productList" :key="product.productId" class="product-card" @click.native="goShopDetail(product.shopId)">
         <div class="product-info">
           <div class="product-main">
-            <img :src="product.productImage" class="product-image" alt="商品图片">
+            <img :src="product.productImage" class="product-image" alt="商品图片" @error="product.productImage = '/placeholder.png'">
             <div class="product-detail">
               <h3>{{ product.productName }}</h3>
               <p class="product-desc">{{ product.productDesc }}</p>
