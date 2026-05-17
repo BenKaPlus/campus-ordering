@@ -16,7 +16,9 @@ import com.campus.ordering.mapper.SysRoleMapper;
 import com.campus.ordering.mapper.SysUserMapper;
 import com.campus.ordering.mapper.SysUserRoleMapper;
 import com.campus.ordering.service.MerchantApplyService;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.campus.ordering.dto.MerchantSettleDTO;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,8 +38,6 @@ public class MerchantApplyServiceImpl implements MerchantApplyService {
     private SysRoleMapper sysRoleMapper;
     @Resource
     private SysUserRoleMapper sysUserRoleMapper;
-    @Resource
-    private PasswordEncoder passwordEncoder;
 
     @Override
     public IPage<MerchantApply> getApplyList(Integer auditStatus, Integer page, Integer size) {
@@ -114,5 +114,74 @@ public class MerchantApplyServiceImpl implements MerchantApplyService {
                 shopInfoMapper.insert(shop);
             }
         }
+    }
+
+    @Override
+    public MerchantApply getCurrentUserApply() {
+        String userNo = getCurrentUserNo();
+        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUserNo, userNo)
+                .eq(SysUser::getIsDeleted, 0));
+        if (user == null) {
+            return null;
+        }
+
+        return merchantApplyMapper.selectOne(new LambdaQueryWrapper<MerchantApply>()
+                .eq(MerchantApply::getUserId, user.getUserId())
+                .eq(MerchantApply::getIsDeleted, 0)
+                .orderByDesc(MerchantApply::getCreateTime)
+                .last("LIMIT 1"));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateApply(MerchantSettleDTO settleDTO) {
+        String userNo = getCurrentUserNo();
+        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUserNo, userNo)
+                .eq(SysUser::getIsDeleted, 0));
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+
+        MerchantApply apply = merchantApplyMapper.selectOne(new LambdaQueryWrapper<MerchantApply>()
+                .eq(MerchantApply::getUserId, user.getUserId())
+                .eq(MerchantApply::getIsDeleted, 0)
+                .orderByDesc(MerchantApply::getCreateTime)
+                .last("LIMIT 1"));
+        if (apply == null) {
+            throw new BusinessException(ResultCode.ERROR, "未找到入驻申请");
+        }
+
+        if (apply.getAuditStatus() == 1) {
+            throw new BusinessException(ResultCode.ERROR, "申请已通过，无法修改");
+        }
+
+        apply.setShopName(settleDTO.getShopName());
+        apply.setShopDescription(settleDTO.getShopDescription());
+        apply.setShopType(settleDTO.getShopType());
+        apply.setDeliveryFee(settleDTO.getDeliveryFee());
+        apply.setBusinessLicense(settleDTO.getBusinessLicense());
+        apply.setIdCardFront(settleDTO.getIdCardFront());
+        apply.setIdCardBack(settleDTO.getIdCardBack());
+
+        if (apply.getAuditStatus() == 2) {
+            apply.setAuditStatus(0); // 重新提交，恢复为待审核
+            apply.setAuditRemark(null);
+            apply.setAuditUserId(null);
+            apply.setAuditTime(null);
+        }
+
+        apply.setUpdateTime(LocalDateTime.now());
+        merchantApplyMapper.updateById(apply);
+    }
+
+    private String getCurrentUserNo() {
+        org.springframework.security.core.Authentication authentication =
+            SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
+            return ((UserDetails) authentication.getPrincipal()).getUsername();
+        }
+        throw new BusinessException(ResultCode.ERROR, "无法获取当前用户信息");
     }
 }

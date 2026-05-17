@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.dto.LoginDTO;
 import com.campus.ordering.dto.MerchantApplyDTO;
+import com.campus.ordering.dto.MerchantSettleDTO;
 import com.campus.ordering.dto.StudentRegisterDTO;
 import com.campus.ordering.entity.MerchantApply;
 import com.campus.ordering.entity.SysRole;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -84,15 +86,36 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ResultCode.USER_DISABLED);
         }
 
-        // 5. 查询用户角色
-        SysUserRole userRole = sysUserRoleMapper.selectOne(new LambdaQueryWrapper<SysUserRole>()
+        // 5. 查询用户所有角色
+        List<SysUserRole> userRoles = sysUserRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, user.getUserId())
                 .eq(SysUserRole::getIsDeleted, 0));
-        SysRole role = sysRoleMapper.selectById(userRole.getRoleId());
+        
+        // 优先使用商家角色（如果用户有商家角色的话）
+        SysRole role = null;
+        for (SysUserRole ur : userRoles) {
+            SysRole r = sysRoleMapper.selectById(ur.getRoleId());
+            if (r != null && "merchant".equals(r.getRoleCode())) {
+                role = r;
+                break;
+            }
+        }
+        // 如果没有商家角色，使用第一个角色
+        if (role == null && !userRoles.isEmpty()) {
+            role = sysRoleMapper.selectById(userRoles.get(0).getRoleId());
+        }
+        // 如果没有角色但用户是商家类型（待审核商家），使用一个虚拟角色
+        if (role == null && user.getUserType() == 2) {
+            // 商家注册后待审核状态，没有实际角色，返回null让前端处理
+            role = null;
+        } else if (role == null) {
+            throw new BusinessException(ResultCode.ERROR, "用户未分配角色");
+        }
 
         // 6. 生成JWT令牌
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUserNo());
-        String token = jwtTokenUtil.generateToken(userDetails, user.getUserId(), role.getRoleCode());
+        String roleCode = role != null ? role.getRoleCode() : "PENDING_MERCHANT";
+        String token = jwtTokenUtil.generateToken(userDetails, user.getUserId(), roleCode);
         String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
         // 7. 令牌存入Redis
@@ -115,9 +138,14 @@ public class AuthServiceImpl implements AuthService {
         loginVO.setUserInfo(userInfo);
 
         RoleInfoVO roleInfo = new RoleInfoVO();
-        roleInfo.setRoleId(role.getRoleId());
-        roleInfo.setRoleCode(role.getRoleCode());
-        roleInfo.setRoleName(role.getRoleName());
+        if (role != null) {
+            roleInfo.setRoleId(role.getRoleId());
+            roleInfo.setRoleCode(role.getRoleCode());
+            roleInfo.setRoleName(role.getRoleName());
+        } else {
+            roleInfo.setRoleCode("PENDING_MERCHANT");
+            roleInfo.setRoleName("待入驻商家");
+        }
         loginVO.setRoleInfo(roleInfo);
 
         // 9. 更新最后登录时间
@@ -220,20 +248,20 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该手机号已被注册");
         }
 
-        // 4. 创建用户（状态为待审核）
+        // 4. 创建用户（状态为激活）
         SysUser user = new SysUser();
         user.setUserNo(applyDTO.getUserNo());
         user.setPassword(passwordEncoder.encode(applyDTO.getPassword()));
         user.setPhone(applyDTO.getPhone());
         user.setUserName(applyDTO.getUserName());
         user.setUserType(2); // 2-商家
-        user.setStatus(0); // 0-禁用，待审核
+        user.setStatus(1); // 1-激活，可登录
         user.setCreateTime(LocalDateTime.now());
         user.setUpdateTime(LocalDateTime.now());
         user.setIsDeleted(0);
         sysUserMapper.insert(user);
 
-        // 5. 创建入驻申请
+        // 5. 创建入驻申请（待审核）
         MerchantApply apply = new MerchantApply();
         apply.setUserId(user.getUserId());
         apply.setApplicantName(applyDTO.getUserName());
@@ -251,7 +279,90 @@ public class AuthServiceImpl implements AuthService {
         apply.setIsDeleted(0);
         merchantApplyMapper.insert(apply);
 
-        // 6. 删除验证码
+        // 8. 删除验证码
         redisTemplate.delete("captcha:" + applyDTO.getUuid());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void merchantSettle(MerchantSettleDTO settleDTO) {
+        // 获取当前登录用户
+        String userNo = getCurrentUserNo();
+        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUserNo, userNo)
+                .eq(SysUser::getIsDeleted, 0));
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND);
+        }
+
+        // 检查是否已有待审核或已通过的入驻申请
+        MerchantApply existingApply = merchantApplyMapper.selectOne(new LambdaQueryWrapper<MerchantApply>()
+                .eq(MerchantApply::getUserId, user.getUserId())
+                .eq(MerchantApply::getIsDeleted, 0)
+                .apply("audit_status IN (0, 1)"));
+        if (existingApply != null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "您已有入驻申请，无需重复提交");
+        }
+
+        // 创建入驻申请（待审核）
+        MerchantApply apply = new MerchantApply();
+        apply.setUserId(user.getUserId());
+        apply.setApplicantName(user.getUserName());
+        apply.setApplicantPhone(user.getPhone());
+        apply.setShopName(settleDTO.getShopName());
+        apply.setShopDescription(settleDTO.getShopDescription());
+        apply.setShopType(settleDTO.getShopType());
+        apply.setDeliveryFee(settleDTO.getDeliveryFee());
+        apply.setBusinessLicense(settleDTO.getBusinessLicense());
+        apply.setIdCardFront(settleDTO.getIdCardFront());
+        apply.setIdCardBack(settleDTO.getIdCardBack());
+        apply.setAuditStatus(0); // 0-待审核
+        apply.setCreateTime(LocalDateTime.now());
+        apply.setUpdateTime(LocalDateTime.now());
+        apply.setIsDeleted(0);
+        merchantApplyMapper.insert(apply);
+    }
+
+    @Override
+    public Integer getMerchantSettleStatus() {
+        String userNo = getCurrentUserNo();
+        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUserNo, userNo)
+                .eq(SysUser::getIsDeleted, 0));
+        if (user == null) {
+            return -1;
+        }
+
+        // 检查是否已有商家角色（已入驻）
+        SysUserRole merchantRole = sysUserRoleMapper.selectOne(new LambdaQueryWrapper<SysUserRole>()
+                .eq(SysUserRole::getUserId, user.getUserId())
+                .eq(SysUserRole::getIsDeleted, 0));
+        if (merchantRole != null) {
+            SysRole role = sysRoleMapper.selectById(merchantRole.getRoleId());
+            if (role != null && "merchant".equals(role.getRoleCode())) {
+                return 1; // 已入驻
+            }
+        }
+
+        // 检查是否有待审核的入驻申请
+        MerchantApply apply = merchantApplyMapper.selectOne(new LambdaQueryWrapper<MerchantApply>()
+                .eq(MerchantApply::getUserId, user.getUserId())
+                .eq(MerchantApply::getIsDeleted, 0)
+                .orderByDesc(MerchantApply::getCreateTime)
+                .last("LIMIT 1"));
+        if (apply != null) {
+            return apply.getAuditStatus(); // 0-待审核 1-已通过 2-已拒绝
+        }
+
+        return -1; // 未申请过入驻
+    }
+
+    private String getCurrentUserNo() {
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
+            return ((org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal()).getUsername();
+        }
+        throw new BusinessException(ResultCode.ERROR, "无法获取当前用户信息");
     }
 }

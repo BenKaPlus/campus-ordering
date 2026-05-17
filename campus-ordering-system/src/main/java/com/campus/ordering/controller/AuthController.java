@@ -4,12 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.dto.LoginDTO;
 import com.campus.ordering.dto.MerchantApplyDTO;
+import com.campus.ordering.dto.MerchantSettleDTO;
 import com.campus.ordering.dto.PasswordUpdateDTO;
 import com.campus.ordering.dto.StudentRegisterDTO;
 import com.campus.ordering.dto.UserInfoUpdateDTO;
-import com.campus.ordering.entity.SysRole;
-import com.campus.ordering.entity.SysUser;
-import com.campus.ordering.entity.SysUserRole;
+import com.campus.ordering.entity.MerchantApply;
 import com.campus.ordering.mapper.SysRoleMapper;
 import com.campus.ordering.mapper.SysUserMapper;
 import com.campus.ordering.mapper.SysUserRoleMapper;
@@ -48,6 +47,8 @@ public class AuthController {
     private SysUserRoleMapper sysUserRoleMapper;
     @Resource
     private SysRoleMapper sysRoleMapper;
+    @Resource
+    private com.campus.ordering.service.MerchantApplyService merchantApplyService;
 
     @PostMapping("/login")
     @ApiOperation("账号密码登录")
@@ -124,6 +125,36 @@ public class AuthController {
     @ApiOperation("商家入驻申请")
     public Result<Void> merchantApply(@Valid @RequestBody MerchantApplyDTO applyDTO) {
         authService.merchantApply(applyDTO);
+        return Result.success();
+    }
+
+    @PostMapping("/merchant/settle")
+    @ApiOperation("商家入驻申请（已登录用户）")
+    @PreAuthorize("isAuthenticated()")
+    public Result<Void> merchantSettle(@Valid @RequestBody MerchantSettleDTO settleDTO) {
+        authService.merchantSettle(settleDTO);
+        return Result.success();
+    }
+
+    @GetMapping("/merchant/settle-status")
+    @ApiOperation("获取商家入驻状态")
+    @PreAuthorize("isAuthenticated()")
+    public Result<Integer> getMerchantSettleStatus() {
+        return Result.success(authService.getMerchantSettleStatus());
+    }
+
+    @GetMapping("/merchant/apply")
+    @ApiOperation("获取当前用户的入驻申请")
+    @PreAuthorize("isAuthenticated()")
+    public Result<MerchantApply> getCurrentUserApply() {
+        return Result.success(merchantApplyService.getCurrentUserApply());
+    }
+
+    @PutMapping("/merchant/apply")
+    @ApiOperation("更新入驻申请信息")
+    @PreAuthorize("isAuthenticated()")
+    public Result<Void> updateApply(@Valid @RequestBody MerchantSettleDTO settleDTO) {
+        merchantApplyService.updateApply(settleDTO);
         return Result.success();
     }
 

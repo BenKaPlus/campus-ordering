@@ -1,6 +1,5 @@
 import request from './index'
 
-// 登录
 export function login(data) {
   return request({
     url: '/auth/login',
@@ -9,7 +8,6 @@ export function login(data) {
   })
 }
 
-// 退出登录
 export function logout() {
   return request({
     url: '/auth/logout',
@@ -17,7 +15,6 @@ export function logout() {
   })
 }
 
-// 获取当前用户信息
 export function getUserInfo() {
   return request({
     url: '/auth/user/info',
@@ -25,7 +22,6 @@ export function getUserInfo() {
   })
 }
 
-// 获取图形验证码
 export function getCaptcha() {
   return request({
     url: '/auth/captcha',
@@ -33,7 +29,6 @@ export function getCaptcha() {
   })
 }
 
-// 更新当前用户信息
 export function updateUserInfo(data) {
   return request({
     url: '/auth/user/info',
@@ -42,10 +37,39 @@ export function updateUserInfo(data) {
   })
 }
 
-// 修改密码
 export function updatePassword(data) {
   return request({
     url: '/auth/user/password',
+    method: 'put',
+    data
+  })
+}
+
+export function getMerchantSettleStatus() {
+  return request({
+    url: '/auth/merchant/settle-status',
+    method: 'get'
+  })
+}
+
+export function merchantSettle(data) {
+  return request({
+    url: '/auth/merchant/settle',
+    method: 'post',
+    data
+  })
+}
+
+export function getCurrentUserApply() {
+  return request({
+    url: '/auth/merchant/apply',
+    method: 'get'
+  })
+}
+
+export function updateApply(data) {
+  return request({
+    url: '/auth/merchant/apply',
     method: 'put',
     data
   })

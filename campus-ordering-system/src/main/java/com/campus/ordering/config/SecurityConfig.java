@@ -66,8 +66,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 ).permitAll()
                 // 学生端接口（仅学生可访问）
                 .antMatchers("/student/cart/**", "/student/order/**", "/student/info/**", "/student/address/**", "/student/message/**", "/student/feedback/**").hasRole("STUDENT")
-                // 商家端接口（仅商家可访问）
-                .antMatchers("/merchant/**").hasRole("MERCHANT")
+                // 商家端接口（商家或待入驻商家可访问）
+                .antMatchers("/merchant/**").hasAnyRole("MERCHANT", "PENDING_MERCHANT")
                 // 管理员端接口（仅管理员可访问）
                 .antMatchers("/admin/**").hasRole("ADMIN")
                 // 其他接口需认证

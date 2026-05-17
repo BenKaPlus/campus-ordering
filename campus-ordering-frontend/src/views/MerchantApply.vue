@@ -1,7 +1,7 @@
 <template>
   <div class="apply-container">
     <el-card class="apply-card">
-      <h2 class="apply-title">商家入驻申请</h2>
+      <h2 class="apply-title">商家注册</h2>
       <el-form ref="applyForm" :model="applyForm" :rules="rules" label-width="120px">
         <el-divider content-position="left">账号信息</el-divider>
         <el-form-item label="登录账号" prop="userNo">

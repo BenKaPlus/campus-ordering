@@ -24,7 +24,7 @@
             <span>还没有账号？</span>
             <router-link to="/register/student" class="register-link">学生注册</router-link>
             <span style="margin: 0 10px; color: #ddd;">|</span>
-            <router-link to="/register/merchant" class="register-link">商家入驻</router-link>
+            <router-link to="/register/merchant" class="register-link">商家注册</router-link>
           </div>
         </el-form-item>
       </el-form>
