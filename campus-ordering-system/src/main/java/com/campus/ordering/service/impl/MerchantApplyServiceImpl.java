@@ -82,38 +82,50 @@ public class MerchantApplyServiceImpl implements MerchantApplyService {
                         .eq(SysRole::getRoleCode, "merchant")
                         .eq(SysRole::getIsDeleted, 0));
                 if (merchantRole != null) {
-                    SysUserRole userRole = new SysUserRole();
-                    userRole.setUserId(user.getUserId());
-                    userRole.setRoleId(merchantRole.getRoleId());
-                    userRole.setCreateTime(LocalDateTime.now());
-                    userRole.setUpdateTime(LocalDateTime.now());
-                    userRole.setIsDeleted(0);
-                    sysUserRoleMapper.insert(userRole);
+                    // 检查用户是否已经有商家角色
+                    SysUserRole existingRole = sysUserRoleMapper.selectOne(new LambdaQueryWrapper<SysUserRole>()
+                            .eq(SysUserRole::getUserId, user.getUserId())
+                            .eq(SysUserRole::getRoleId, merchantRole.getRoleId())
+                            .eq(SysUserRole::getIsDeleted, 0));
+                    if (existingRole == null) {
+                        SysUserRole userRole = new SysUserRole();
+                        userRole.setUserId(user.getUserId());
+                        userRole.setRoleId(merchantRole.getRoleId());
+                        userRole.setCreateTime(LocalDateTime.now());
+                        userRole.setUpdateTime(LocalDateTime.now());
+                        userRole.setIsDeleted(0);
+                        sysUserRoleMapper.insert(userRole);
+                    }
                 }
 
-                // 创建店铺
-                ShopInfo shop = new ShopInfo();
-                shop.setMerchantUserId(user.getUserId());
-                shop.setShopName(apply.getShopName());
-                shop.setShopLogo(""); // 默认空字符串
-                shop.setShopDesc(apply.getShopDescription());
-                shop.setShopCategoryId(1L); // 默认分类 ID
-                shop.setBusinessLicense(""); // 默认空字符串
-                shop.setFoodLicense(""); // 默认空字符串
-                shop.setBusinessHours("09:00-21:00"); // 默认营业时间
-                shop.setContactPhone(user.getPhone()); // 使用用户手机号
-                shop.setShopAddress("校园内"); // 默认地址
-                shop.setDeliveryFee(apply.getDeliveryFee());
-                shop.setMinOrderAmount(new java.math.BigDecimal("0.00")); // 默认 0 起送
-                shop.setShopStatus(1); // 营业中
-                shop.setAuditStatus(1); // 已审核
-                shop.setAuditRemark("入驻申请审核通过");
-                shop.setMonthlySales(0); // 初始销量为 0
-                shop.setShopScore(new java.math.BigDecimal("5.0")); // 初始评分 5.0
-                shop.setCreateTime(LocalDateTime.now());
-                shop.setUpdateTime(LocalDateTime.now());
-                shop.setIsDeleted(0);
-                shopInfoMapper.insert(shop);
+                // 创建店铺（检查是否已存在）
+                ShopInfo existingShop = shopInfoMapper.selectOne(new LambdaQueryWrapper<ShopInfo>()
+                        .eq(ShopInfo::getMerchantUserId, user.getUserId())
+                        .eq(ShopInfo::getIsDeleted, 0));
+                if (existingShop == null) {
+                    ShopInfo shop = new ShopInfo();
+                    shop.setMerchantUserId(user.getUserId());
+                    shop.setShopName(apply.getShopName());
+                    shop.setShopLogo(""); // 默认空字符串
+                    shop.setShopDesc(apply.getShopDescription());
+                    shop.setShopCategoryId(1L); // 默认分类 ID
+                    shop.setBusinessLicense(""); // 默认空字符串
+                    shop.setFoodLicense(""); // 默认空字符串
+                    shop.setBusinessHours("09:00-21:00"); // 默认营业时间
+                    shop.setContactPhone(user.getPhone()); // 使用用户手机号
+                    shop.setShopAddress("校园内"); // 默认地址
+                    shop.setDeliveryFee(apply.getDeliveryFee());
+                    shop.setMinOrderAmount(new java.math.BigDecimal("0.00")); // 默认 0 起送
+                    shop.setShopStatus(1); // 营业中
+                    shop.setAuditStatus(1); // 已审核
+                    shop.setAuditRemark("入驻申请审核通过");
+                    shop.setMonthlySales(0); // 初始销量为 0
+                    shop.setShopScore(new java.math.BigDecimal("5.0")); // 初始评分 5.0
+                    shop.setCreateTime(LocalDateTime.now());
+                    shop.setUpdateTime(LocalDateTime.now());
+                    shop.setIsDeleted(0);
+                    shopInfoMapper.insert(shop);
+                }
             }
         }
     }
