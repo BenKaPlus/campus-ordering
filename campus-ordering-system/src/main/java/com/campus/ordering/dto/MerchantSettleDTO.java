@@ -28,6 +28,10 @@ public class MerchantSettleDTO {
     @ApiModelProperty(value = "营业执照 URL")
     private String businessLicense;
 
+    @NotBlank(message = "身份证号码不能为空")
+    @ApiModelProperty(value = "身份证号码", required = true)
+    private String applicantIdCard;
+
     @ApiModelProperty(value = "身份证正面 URL")
     private String idCardFront;
 

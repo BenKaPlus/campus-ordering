@@ -158,12 +158,14 @@ public class OrderServiceImpl implements OrderService {
 
             // 校验规格
             BigDecimal price = product.getPrice();
+            String specName = null;
             if (itemDTO.getSpecId() != null) {
                 ProductSpec spec = productSpecMapper.selectById(itemDTO.getSpecId());
                 if (spec == null || !spec.getProductId().equals(product.getProductId())) {
                     throw new BusinessException(ResultCode.ERROR, "商品规格不存在");
                 }
                 price = spec.getSpecPrice();
+                specName = spec.getSpecName();
                 // 扣减库存
                 spec.setStock(spec.getStock() - itemDTO.getProductNum());
                 productSpecMapper.updateById(spec);
@@ -180,6 +182,7 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setProductName(product.getProductName());
             orderItem.setProductImage(product.getProductImage());
             orderItem.setSpecId(itemDTO.getSpecId());
+            orderItem.setSpecName(specName);
             orderItem.setProductPrice(price);
             orderItem.setProductNum(itemDTO.getProductNum());
             orderItem.setTotalPrice(totalPrice);

@@ -163,6 +163,7 @@ public class MerchantApplyServiceImpl implements MerchantApplyService {
         apply.setShopType(settleDTO.getShopType());
         apply.setDeliveryFee(settleDTO.getDeliveryFee());
         apply.setBusinessLicense(settleDTO.getBusinessLicense());
+        apply.setApplicantIdCard(settleDTO.getApplicantIdCard());
         apply.setIdCardFront(settleDTO.getIdCardFront());
         apply.setIdCardBack(settleDTO.getIdCardBack());
 

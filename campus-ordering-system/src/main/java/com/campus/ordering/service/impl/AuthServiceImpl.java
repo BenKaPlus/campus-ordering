@@ -309,6 +309,7 @@ public class AuthServiceImpl implements AuthService {
         apply.setUserId(user.getUserId());
         apply.setApplicantName(user.getUserName());
         apply.setApplicantPhone(user.getPhone());
+        apply.setApplicantIdCard(settleDTO.getApplicantIdCard());
         apply.setShopName(settleDTO.getShopName());
         apply.setShopDescription(settleDTO.getShopDescription());
         apply.setShopType(settleDTO.getShopType());
