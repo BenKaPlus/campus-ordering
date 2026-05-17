@@ -12,6 +12,7 @@ import com.campus.ordering.entity.*;
 import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.mapper.*;
 import com.campus.ordering.service.OrderService;
+import com.campus.ordering.service.OrderWebSocketService;
 import com.campus.ordering.vo.AdminOrderDetailVO;
 import com.campus.ordering.vo.AdminOrderVO;
 import com.campus.ordering.vo.OrderItemVO;
@@ -56,6 +57,9 @@ public class OrderServiceImpl implements OrderService {
     
     @Resource
     private PaymentInfoMapper paymentInfoMapper;
+
+    @Resource
+    private OrderWebSocketService orderWebSocketService;
 
     @Value("${system.order.expire-minutes}")
     private Integer expireMinutes;
@@ -230,6 +234,15 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
+        // 10. 推送新订单通知给商家
+        orderWebSocketService.pushNewOrderToMerchant(
+            shop.getMerchantUserId(),
+            order.getOrderId(),
+            orderNo,
+            shop.getShopName(),
+            order.getTotalAmount().toString()
+        );
+
         return orderNo;
     }
 
@@ -338,6 +351,14 @@ public class OrderServiceImpl implements OrderService {
             paymentDTO.setWxQrcode(shop.getWxQrcode());
             paymentDTO.setAliQrcode(shop.getAliQrcode());
             paymentList.add(paymentDTO);
+
+            orderWebSocketService.pushNewOrderToMerchant(
+                shop.getMerchantUserId(),
+                order.getOrderId(),
+                orderNo,
+                shop.getShopName(),
+                totalAmount.toString()
+            );
         }
 
         // 删除购物车中的商品
@@ -609,6 +630,8 @@ public class OrderServiceImpl implements OrderService {
         // 记录日志
         SysUser user = sysUserMapper.selectById(merchantUserId);
         saveOrderStatusLog(orderId, order.getOrderNo(), 1, 2, "商家接单", merchantUserId, user.getUserName());
+
+        orderWebSocketService.pushOrderAcceptedToStudent(order.getUserId(), orderId, order.getOrderNo());
     }
 
     @Override
@@ -634,6 +657,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 回滚库存+触发退款
         rollbackStock(orderId);
+
+        orderWebSocketService.pushOrderRejectedToStudent(order.getUserId(), orderId, order.getOrderNo(), rejectReason);
     }
 
     @Override
@@ -664,6 +689,64 @@ public class OrderServiceImpl implements OrderService {
 
         // 记录日志
         saveOrderStatusLog(orderId, order.getOrderNo(), preStatus, status, "订单状态更新", operationUserId, operationUserName);
+
+        // 发送WebSocket通知
+        String statusText = getStatusText(status);
+        ShopInfo shop = shopInfoMapper.selectById(order.getShopId());
+
+        switch (status) {
+            case 3:
+                orderWebSocketService.pushOrderNotification(
+                    order.getUserId(),
+                    "订单已备餐",
+                    String.format("订单 %s 已备餐，等待出餐", order.getOrderNo()),
+                    null
+                );
+                break;
+            case 4:
+                orderWebSocketService.pushOrderNotification(
+                    order.getUserId(),
+                    "订单配送中",
+                    String.format("订单 %s 正在配送中", order.getOrderNo()),
+                    null
+                );
+                break;
+            case 5:
+                orderWebSocketService.pushOrderFinishedToStudent(order.getUserId(), orderId, order.getOrderNo());
+                break;
+            case 7:
+                orderWebSocketService.pushOrderNotification(
+                    shop.getMerchantUserId(),
+                    "退款申请",
+                    String.format("订单 %s 有退款申请，请处理", order.getOrderNo()),
+                    null
+                );
+                break;
+            case 8:
+                orderWebSocketService.pushRefundToStudent(
+                    order.getUserId(),
+                    orderId,
+                    order.getOrderNo(),
+                    order.getPayAmount().toString()
+                );
+                break;
+        }
+    }
+
+    private String getStatusText(Integer status) {
+        if (status == null) return "未知状态";
+        switch (status) {
+            case 0: return "待支付";
+            case 1: return "待接单";
+            case 2: return "待备餐";
+            case 3: return "待出餐";
+            case 4: return "配送中";
+            case 5: return "已完成";
+            case 6: return "已取消";
+            case 7: return "退款中";
+            case 8: return "已退款";
+            default: return "未知状态";
+        }
     }
 
     // 私有方法：校验订单归属
@@ -813,5 +896,37 @@ public class OrderServiceImpl implements OrderService {
             log.info("订单更新结果: updateCount = {}", updateCount);
         }
         log.info("deleteOrders 执行完成");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void requestRefund(Long orderId, String refundReason, Long userId) {
+        OrderInfo order = orderInfoMapper.selectById(orderId);
+        checkOrderOwner(order, userId);
+
+        // 仅已支付但未完成的订单可申请退款（状态1-待接单、2-待备餐、3-待出餐、4-配送中）
+        Integer status = order.getOrderStatus();
+        if (status != 1 && status != 2 && status != 3 && status != 4) {
+            throw new BusinessException(ResultCode.ORDER_STATUS_ERROR, "当前订单状态不支持退款申请");
+        }
+
+        // 更新订单状态为退款中
+        order.setOrderStatus(7);
+        order.setRefundReason(refundReason);
+        order.setRefundApplyTime(LocalDateTime.now());
+        orderInfoMapper.updateById(order);
+
+        // 记录日志
+        SysUser user = sysUserMapper.selectById(userId);
+        saveOrderStatusLog(orderId, order.getOrderNo(), status, 7, "用户申请退款：" + refundReason, userId, user.getUserName());
+
+        // 通知商家有新的退款申请
+        ShopInfo shop = shopInfoMapper.selectById(order.getShopId());
+        orderWebSocketService.pushOrderNotification(
+            shop.getMerchantUserId(),
+            "退款申请",
+            String.format("订单 %s 有退款申请，原因：%s", order.getOrderNo(), refundReason),
+            null
+        );
     }
 }

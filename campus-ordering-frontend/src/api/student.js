@@ -54,6 +54,9 @@ export function getPaymentList(params) {
 export function updateOrderStatus(orderId, status) {
   return request({ url: '/student/order/status/' + orderId, method: 'put', params: { status } })
 }
+export function requestRefund(orderId, refundReason) {
+  return request({ url: '/student/order/refund/' + orderId, method: 'put', params: { refundReason } })
+}
 
 // 收货地址
 export function getAddressList() {

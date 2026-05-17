@@ -101,6 +101,18 @@ public class OrderInfo {
     @TableField("cancel_reason")
     private String cancelReason;
 
+    @ApiModelProperty(value = "退款原因")
+    @TableField("refund_reason")
+    private String refundReason;
+
+    @ApiModelProperty(value = "退款申请时间")
+    @TableField("refund_apply_time")
+    private LocalDateTime refundApplyTime;
+
+    @ApiModelProperty(value = "退款完成时间")
+    @TableField("refund_time")
+    private LocalDateTime refundTime;
+
     @ApiModelProperty(value = "订单支付过期时间")
     @TableField("expire_time")
     private LocalDateTime expireTime;

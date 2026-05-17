@@ -85,4 +85,9 @@ public interface OrderService {
      * 学生端删除订单（单个或批量）
      */
     void deleteOrders(List<Long> orderIds, Long userId);
+
+    /**
+     * 学生申请退款
+     */
+    void requestRefund(Long orderId, String refundReason, Long userId);
 }

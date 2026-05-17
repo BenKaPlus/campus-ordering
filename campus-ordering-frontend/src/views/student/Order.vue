@@ -66,6 +66,7 @@
             <el-tab-pane label="配送中" name="4"></el-tab-pane>
             <el-tab-pane label="已完成" name="5"></el-tab-pane>
             <el-tab-pane label="已取消" name="6"></el-tab-pane>
+            <el-tab-pane label="退款中" name="7"></el-tab-pane>
             <el-tab-pane label="支付记录" name="payment"></el-tab-pane>
           </el-tabs>
         </div>
@@ -116,10 +117,11 @@
             <el-button v-if="scope.row.orderStatus === 0" type="text" size="small" @click="cancelOrder(scope.row.orderId)">取消订单</el-button>
             <el-button v-if="scope.row.orderStatus === 0" type="primary" size="small" @click="goPay(scope.row.orderId)">去支付</el-button>
             <el-button v-if="scope.row.orderStatus === 4" type="text" size="small" @click="confirmReceive(scope.row.orderId)">确认收货</el-button>
+            <el-button v-if="[1, 2, 3, 4].includes(scope.row.orderStatus)" type="warning" size="small" @click="openRefundDialog(scope.row)">申请退款</el-button>
             <el-button v-if="scope.row.orderStatus === 5 && !scope.row.isReviewed" type="success" size="small" @click="openReviewDialog(scope.row)">去评价</el-button>
             <el-button v-if="scope.row.orderStatus === 5 && scope.row.isReviewed" type="info" size="small" @click="viewReview(scope.row.orderId)">查看评价</el-button>
             <el-button
-              v-if="scope.row.orderStatus === 0 || scope.row.orderStatus === 1 || scope.row.orderStatus === 5 || scope.row.orderStatus === 6"
+              v-if="[0, 1, 5, 6, 7, 8].includes(scope.row.orderStatus)"
               type="text"
               size="small"
               @click="handleDelete(scope.row.orderId)"
@@ -241,6 +243,7 @@
         <el-button v-if="orderDetail.orderStatus === 0" type="text" size="small" @click="cancelOrder(orderDetail.orderId)">取消订单</el-button>
         <el-button v-if="orderDetail.orderStatus === 0" type="primary" size="small" @click="goPay(orderDetail.orderId)">去支付</el-button>
         <el-button v-if="orderDetail.orderStatus === 4" type="primary" size="small" @click="confirmReceive(orderDetail.orderId)">确认收货</el-button>
+        <el-button v-if="[1, 2, 3, 4].includes(orderDetail.orderStatus)" type="warning" size="small" @click="openRefundDialog(orderDetail)">申请退款</el-button>
       </div>
     </el-drawer>
 
@@ -335,11 +338,38 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 退款申请对话框 -->
+    <el-dialog :visible.sync="refundDialogVisible" title="申请退款" width="500px">
+      <el-form :model="refundForm" :rules="refundRules" ref="refundForm" label-width="100px">
+        <el-form-item label="订单号">
+          <span>{{ refundForm.orderNo }}</span>
+        </el-form-item>
+        <el-form-item label="退款金额">
+          <span style="color: #F56C6C; font-weight: bold;">¥{{ refundForm.payAmount }}</span>
+        </el-form-item>
+        <el-form-item label="退款原因" prop="refundReason">
+          <el-select v-model="refundForm.refundReason" placeholder="请选择退款原因" style="width: 100%;">
+            <el-option label="商品缺货/与描述不符" value="商品缺货/与描述不符"></el-option>
+            <el-option label="配送时间过长" value="配送时间过长"></el-option>
+            <el-option label="不想要了/买错了" value="不想要了/买错了"></el-option>
+            <el-option label="其他原因" value="其他原因"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="详细说明" prop="refundDesc">
+          <el-input type="textarea" v-model="refundForm.refundDesc" :rows="3" placeholder="请详细描述退款原因，以便商家处理" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="refundDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitRefund" :loading="refundSubmitting">提交退款申请</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders, getPaymentList, deleteCart } from '@/api/student'
+import { getOrderList, cancelOrder as cancelOrderApi, getOrderDetail, updateOrderStatus, getSettleInfo, createBatchOrder, getOrderPayInfo, deleteOrders, getPaymentList, deleteCart, requestRefund } from '@/api/student'
 import { createReview, getReviewByOrderId } from '@/api/review'
 
 export default {
@@ -411,6 +441,20 @@ export default {
         ],
         productRating: [
           { required: true, message: '请选择商品满意度评分', trigger: 'change' }
+        ]
+      },
+      refundDialogVisible: false,
+      refundSubmitting: false,
+      refundForm: {
+        orderId: null,
+        orderNo: '',
+        payAmount: 0,
+        refundReason: '',
+        refundDesc: ''
+      },
+      refundRules: {
+        refundReason: [
+          { required: true, message: '请选择退款原因', trigger: 'change' }
         ]
       }
     }
@@ -554,11 +598,11 @@ export default {
       console.log('groupedCartList:', this.groupedCartList)
     },
     getStatusType(status) {
-      const typeMap = { 0: 'info', 1: 'warning', 2: 'primary', 3: 'warning', 4: 'warning', 5: 'success', 6: 'info' }
+      const typeMap = { 0: 'info', 1: 'warning', 2: 'primary', 3: 'warning', 4: 'warning', 5: 'success', 6: 'info', 7: 'danger', 8: 'success' }
       return typeMap[status] || 'info'
     },
     getStatusText(status) {
-      const textMap = { 0: '待支付', 1: '待接单', 2: '待备餐', 3: '待出餐', 4: '配送中', 5: '已完成', 6: '已取消' }
+      const textMap = { 0: '待支付', 1: '待接单', 2: '待备餐', 3: '待出餐', 4: '配送中', 5: '已完成', 6: '已取消', 7: '退款中', 8: '已退款' }
       return textMap[status] || '未知'
     },
     async viewOrderDetail(orderId) {
@@ -796,6 +840,37 @@ export default {
       } catch (error) {
         console.error('获取评价失败:', error)
       }
+    },
+    openRefundDialog(order) {
+      this.refundForm = {
+        orderId: order.orderId,
+        orderNo: order.orderNo,
+        payAmount: order.payAmount,
+        refundReason: '',
+        refundDesc: ''
+      }
+      this.refundDialogVisible = true
+    },
+    async submitRefund() {
+      this.$refs.refundForm.validate(async (valid) => {
+        if (valid) {
+          this.refundSubmitting = true
+          try {
+            const fullReason = this.refundForm.refundDesc
+              ? `${this.refundForm.refundReason}：${this.refundForm.refundDesc}`
+              : this.refundForm.refundReason
+            await requestRefund(this.refundForm.orderId, fullReason)
+            this.$message.success('退款申请已提交，请等待商家处理')
+            this.refundDialogVisible = false
+            this.getOrderList()
+          } catch (error) {
+            console.error('退款申请失败:', error)
+            this.$message.error(error.message || '退款申请失败')
+          } finally {
+            this.refundSubmitting = false
+          }
+        }
+      })
     }
   }
 }

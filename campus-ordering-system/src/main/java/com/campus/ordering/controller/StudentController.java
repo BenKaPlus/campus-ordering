@@ -194,6 +194,15 @@ public class StudentController {
         return Result.success();
     }
 
+    @PutMapping("/order/refund/{orderId}")
+    @ApiOperation("申请退款")
+    public Result<Void> requestRefund(@PathVariable Long orderId, @RequestParam String refundReason, HttpServletRequest request) {
+        log.info("学生端申请退款，orderId: {}, reason: {}", orderId, refundReason);
+        Long userId = getUserId(request);
+        orderService.requestRefund(orderId, refundReason, userId);
+        return Result.success();
+    }
+
     // ==================== 收货地址接口 ====================
     @GetMapping("/address/list")
     @ApiOperation("获取收货地址列表")
