@@ -51,6 +51,7 @@
             </span>
             <el-dropdown-menu slot="dropdown">
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+              <el-dropdown-item v-if="hasStudentRole" command="switchToStudent">切换到学生端</el-dropdown-item>
               <el-dropdown-item command="logout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </el-dropdown>
@@ -323,7 +324,10 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['userInfo'])
+    ...mapGetters(['userInfo', 'roles']),
+    hasStudentRole() {
+      return this.roles && this.roles.includes('STUDENT')
+    }
   },
   created() {
     this.checkSettleStatus()
@@ -440,6 +444,9 @@ export default {
     async handleCommand(command) {
       if (command === 'profile') {
         this.$router.push('/merchant/profile')
+      } else if (command === 'switchToStudent') {
+        await this.$store.dispatch('getUserInfo')
+        this.$router.push('/home')
       } else if (command === 'logout') {
         this.handleLogout()
       }
