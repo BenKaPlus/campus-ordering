@@ -160,6 +160,9 @@
               <el-form-item label="联系电话">
                 <span>{{ applyForm.applicantPhone || '-' }}</span>
               </el-form-item>
+              <el-form-item label="身份证号码">
+                <span>{{ applyForm.applicantIdCard || '-' }}</span>
+              </el-form-item>
               <el-form-item label="店铺名称">
                 <span>{{ applyForm.shopName || '-' }}</span>
               </el-form-item>
@@ -220,6 +223,10 @@
               <el-form-item label="联系电话">
                 <el-input v-if="isEditing" v-model="applyForm.applicantPhone" />
                 <span v-else>{{ applyForm.applicantPhone || '-' }}</span>
+              </el-form-item>
+              <el-form-item label="身份证号码">
+                <el-input v-if="isEditing" v-model="applyForm.applicantIdCard" />
+                <span v-else>{{ applyForm.applicantIdCard || '-' }}</span>
               </el-form-item>
               <el-form-item label="店铺名称">
                 <el-input v-if="isEditing" v-model="applyForm.shopName" />
@@ -433,6 +440,7 @@ export default {
       applyForm: {
         applicantName: '',
         applicantPhone: '',
+        applicantIdCard: '',
         shopName: '',
         shopDescription: '',
         shopType: null,
@@ -661,6 +669,7 @@ export default {
           this.applyForm = {
             applicantName: res.data.applicantName || '',
             applicantPhone: res.data.applicantPhone || '',
+            applicantIdCard: res.data.applicantIdCard || '',
             shopName: res.data.shopName || '',
             shopDescription: res.data.shopDescription || '',
             shopType: res.data.shopType || null,
@@ -690,6 +699,7 @@ export default {
         this.applyForm = {
           applicantName: this.applyInfo.applicantName || '',
           applicantPhone: this.applyInfo.applicantPhone || '',
+          applicantIdCard: this.applyInfo.applicantIdCard || '',
           shopName: this.applyInfo.shopName || '',
           shopDescription: this.applyInfo.shopDescription || '',
           shopType: this.applyInfo.shopType || null,

@@ -87,6 +87,9 @@
                 <el-form-item label="联系电话">
                   <el-input v-model="applyForm.applicantPhone" :disabled="!isEditing" />
                 </el-form-item>
+                <el-form-item label="身份证号码" prop="applicantIdCard">
+                  <el-input v-model="applyForm.applicantIdCard" :disabled="!isEditing" maxlength="18" />
+                </el-form-item>
 
                 <el-divider content-position="left">店铺信息</el-divider>
                 <el-form-item label="店铺名称" prop="shopName">
@@ -219,6 +222,9 @@
                 <el-input-number v-model="settleForm.deliveryFee" :min="0" :precision="2" :step="0.5" style="width: 100%;" />
               </el-form-item>
               <el-divider content-position="left">资质证明</el-divider>
+              <el-form-item label="身份证号码" prop="applicantIdCard">
+                <el-input v-model="settleForm.applicantIdCard" placeholder="请输入身份证号码" maxlength="18" />
+              </el-form-item>
               <el-form-item label="营业执照">
                 <el-upload
                   class="license-uploader"
@@ -290,6 +296,7 @@ export default {
       applyForm: {
         applicantName: '',
         applicantPhone: '',
+        applicantIdCard: '',
         shopName: '',
         shopDescription: '',
         shopType: null,
@@ -303,13 +310,15 @@ export default {
         shopDescription: '',
         shopType: null,
         deliveryFee: 0,
+        applicantIdCard: '',
         businessLicense: '',
         idCardFront: '',
         idCardBack: ''
       },
       rules: {
         shopName: [{ required: true, message: '请输入店铺名称', trigger: 'blur' }],
-        shopType: [{ required: true, message: '请选择店铺类型', trigger: 'change' }]
+        shopType: [{ required: true, message: '请选择店铺类型', trigger: 'change' }],
+        applicantIdCard: [{ required: true, message: '请输入身份证号码', trigger: 'blur' }, { pattern: /^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/, message: '请输入正确的身份证号码', trigger: 'blur' }]
       }
     }
   },
@@ -344,6 +353,7 @@ export default {
           this.applyForm = {
             applicantName: res.data.applicantName || '',
             applicantPhone: res.data.applicantPhone || '',
+            applicantIdCard: res.data.applicantIdCard || '',
             shopName: res.data.shopName || '',
             shopDescription: res.data.shopDescription || '',
             shopType: res.data.shopType || null,
@@ -366,6 +376,7 @@ export default {
         this.applyForm = {
           applicantName: this.applyInfo.applicantName || '',
           applicantPhone: this.applyInfo.applicantPhone || '',
+          applicantIdCard: this.applyInfo.applicantIdCard || '',
           shopName: this.applyInfo.shopName || '',
           shopDescription: this.applyInfo.shopDescription || '',
           shopType: this.applyInfo.shopType || null,
