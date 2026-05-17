@@ -714,6 +714,7 @@ export default {
       this.submitting = true
       try {
         await updateApply({
+          applicantIdCard: this.applyForm.applicantIdCard,
           shopName: this.applyForm.shopName,
           shopDescription: this.applyForm.shopDescription,
           shopType: this.applyForm.shopType,
@@ -732,7 +733,7 @@ export default {
         this.submitting = false
       }
     },
-    beforeUpload(file, field) {
+    beforeUpload(file) {
       const isImage = file.type.startsWith('image/')
       const isLt5M = file.size / 1024 / 1024 < 5
       if (!isImage) {
