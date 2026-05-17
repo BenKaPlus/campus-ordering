@@ -759,8 +759,13 @@ export default {
         this.$message.error('上传失败')
       }
     },
-    goToMerchant() {
-      this.$router.push('/merchant')
+    async goToMerchant() {
+      try {
+        await this.$store.dispatch('getUserInfo')
+        this.$router.push('/merchant')
+      } catch (error) {
+        this.$message.error('获取用户信息失败，请刷新重试')
+      }
     },
     goToMerchantRegister() {
       this.$router.push('/merchant')

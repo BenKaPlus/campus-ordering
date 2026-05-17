@@ -334,12 +334,12 @@ public class AuthServiceImpl implements AuthService {
             return -1;
         }
 
-        // 检查是否已有商家角色（已入驻）
-        SysUserRole merchantRole = sysUserRoleMapper.selectOne(new LambdaQueryWrapper<SysUserRole>()
+        // 检查是否已有商家角色（已入驻）- 检查所有角色
+        List<SysUserRole> userRoles = sysUserRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, user.getUserId())
                 .eq(SysUserRole::getIsDeleted, 0));
-        if (merchantRole != null) {
-            SysRole role = sysRoleMapper.selectById(merchantRole.getRoleId());
+        for (SysUserRole userRole : userRoles) {
+            SysRole role = sysRoleMapper.selectById(userRole.getRoleId());
             if (role != null && "merchant".equals(role.getRoleCode())) {
                 return 1; // 已入驻
             }
