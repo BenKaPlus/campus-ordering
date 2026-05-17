@@ -1,5 +1,6 @@
 <template>
   <el-container class="merchant-layout">
+    <notice-bar />
     <el-aside v-if="settleStatus === 1" width="200px">
       <el-menu
         :default-active="$route.path"
@@ -270,9 +271,13 @@
 import { mapGetters } from 'vuex'
 import { logout, getMerchantSettleStatus, merchantSettle, getCurrentUserApply, updateApply } from '@/api/auth'
 import { uploadImage } from '@/api/common'
+import NoticeBar from '@/components/NoticeBar'
 
 export default {
   name: 'MerchantLayout',
+  components: {
+    NoticeBar
+  },
   data() {
     return {
       settleStatus: -1,

@@ -7,6 +7,7 @@ import com.campus.ordering.entity.ProductInfo;
 import com.campus.ordering.service.OrderReviewService;
 import com.campus.ordering.service.PayService;
 import com.campus.ordering.service.ShopService;
+import com.campus.ordering.service.SysConfigService;
 import com.campus.ordering.service.FileService;
 import com.campus.ordering.service.ProductService;
 import com.campus.ordering.vo.OrderReviewVO;
@@ -45,6 +46,9 @@ public class CommonController implements WebMvcConfigurer {
     private ProductService productService;
     @Resource
     private OrderReviewService orderReviewService;
+
+    @Resource
+    private SysConfigService sysConfigService;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -142,5 +146,12 @@ public class CommonController implements WebMvcConfigurer {
     @ApiOperation("获取店铺评价统计")
     public Result<Map<String, Object>> getShopReviewSummary(@PathVariable Long shopId) {
         return Result.success(orderReviewService.getShopReviewSummary(shopId));
+    }
+
+    @GetMapping("/notice")
+    @ApiOperation("获取系统公告")
+    public Result<String> getNotice() {
+        String notice = sysConfigService.getConfigValue("system.notice", "");
+        return Result.success(notice);
     }
 }

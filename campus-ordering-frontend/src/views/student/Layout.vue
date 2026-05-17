@@ -1,5 +1,6 @@
 <template>
   <el-container class="student-layout">
+    <notice-bar />
     <el-aside width="200px">
       <el-menu
         :default-active="$route.path"
@@ -55,9 +56,13 @@
 <script>
 import { mapGetters } from 'vuex'
 import { logout } from '@/api/auth'
+import NoticeBar from '@/components/NoticeBar'
 
 export default {
   name: 'StudentLayout',
+  components: {
+    NoticeBar
+  },
   computed: {
     ...mapGetters(['userInfo'])
   },

@@ -40,3 +40,7 @@ export function uploadImage(file) {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
+
+export function getNotice() {
+  return request({ url: '/common/notice', method: 'get' })
+}
