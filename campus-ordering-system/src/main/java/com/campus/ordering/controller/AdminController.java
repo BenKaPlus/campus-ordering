@@ -2,7 +2,7 @@ package com.campus.ordering.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.campus.ordering.common.BusinessException;
+import com.campus.ordering.exception.BusinessException;
 import com.campus.ordering.common.Result;
 import com.campus.ordering.common.ResultCode;
 import com.campus.ordering.entity.MerchantApply;
