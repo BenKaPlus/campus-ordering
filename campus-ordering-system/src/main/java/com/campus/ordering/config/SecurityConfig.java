@@ -64,8 +64,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         "/druid/**", // Druid监控
                         "/ws/**" // WebSocket
                 ).permitAll()
-                // 学生端接口（仅学生可访问）
-                .antMatchers("/student/cart/**", "/student/order/**", "/student/info/**", "/student/address/**", "/student/message/**", "/student/feedback/**").hasRole("STUDENT")
+                // 学生端接口（学生或商家可访问，商家可查看入驻申请）
+                .antMatchers("/student/cart/**", "/student/order/**", "/student/address/**", "/student/message/**", "/student/feedback/**").hasRole("STUDENT")
+                .antMatchers("/student/info/**").hasAnyRole("STUDENT", "MERCHANT", "PENDING_MERCHANT")
                 // 商家端接口（商家或待入驻商家可访问）
                 .antMatchers("/merchant/**").hasAnyRole("MERCHANT", "PENDING_MERCHANT")
                 // 管理员端接口（仅管理员可访问）
