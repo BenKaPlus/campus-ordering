@@ -74,3 +74,19 @@ export function updateApply(data) {
     data
   })
 }
+
+export function sendResetCode(params) {
+  return request({
+    url: '/auth/forgot-password/send-code',
+    method: 'post',
+    params
+  })
+}
+
+export function resetPassword(params) {
+  return request({
+    url: '/auth/forgot-password/reset',
+    method: 'post',
+    params
+  })
+}

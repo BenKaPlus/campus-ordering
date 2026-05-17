@@ -22,6 +22,12 @@ const routes = [
     component: () => import('@/views/MerchantApply.vue'),
     meta: { title: '商家入驻' }
   },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/ForgotPassword.vue'),
+    meta: { title: '忘记密码' }
+  },
   // 学生端路由
   {
     path: '/',

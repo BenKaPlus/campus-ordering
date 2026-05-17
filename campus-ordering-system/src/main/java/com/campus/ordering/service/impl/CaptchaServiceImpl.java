@@ -19,7 +19,9 @@ public class CaptchaServiceImpl implements CaptchaService {
     private RedisTemplate<String, String> redisTemplate;
 
     private static final String CAPTCHA_KEY_PREFIX = "captcha:";
+    private static final String SMS_CODE_KEY_PREFIX = "sms:";
     private static final long CAPTCHA_EXPIRE_MINUTES = 5;
+    private static final long SMS_CODE_EXPIRE_MINUTES = 5;
 
     @Override
     public Map<String, Object> generateCaptcha() {
@@ -71,6 +73,42 @@ public class CaptchaServiceImpl implements CaptchaService {
         if (result) {
             // 验证成功后删除验证码
             redisTemplate.delete(CAPTCHA_KEY_PREFIX + captchaKey);
+        }
+        return result;
+    }
+
+    @Override
+    public String sendSmsCode(String phone) {
+        // 生成6位数字验证码
+        String code = String.format("%06d", (int) (Math.random() * 1000000));
+
+        // 存储到 Redis，key 为手机号
+        String key = SMS_CODE_KEY_PREFIX + phone;
+        redisTemplate.opsForValue().set(key, code, SMS_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
+
+        // TODO: 实际项目中这里应该调用短信网关发送验证码
+        // 现在暂时打印到控制台，方便测试
+        System.out.println("【忘记密码】向手机 " + phone + " 发送的验证码是：" + code);
+
+        return code;
+    }
+
+    @Override
+    public boolean validateSmsCode(String phone, String code) {
+        if (phone == null || code == null) {
+            return false;
+        }
+
+        String key = SMS_CODE_KEY_PREFIX + phone;
+        String storedCode = redisTemplate.opsForValue().get(key);
+        if (storedCode == null) {
+            return false;
+        }
+
+        boolean result = storedCode.equals(code);
+        if (result) {
+            // 验证成功后删除验证码
+            redisTemplate.delete(key);
         }
         return result;
     }

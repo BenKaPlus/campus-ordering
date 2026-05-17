@@ -230,4 +230,55 @@ public class AuthController {
         System.out.println("验证结果：" + encoder.matches(password, encoded));
         return Result.success(encoded);
     }
+
+    @PostMapping("/forgot-password/send-code")
+    @ApiOperation("忘记密码-发送验证码")
+    public Result<Void> sendResetCode(@RequestParam String userNo, @RequestParam String phone) {
+        // 验证账号和手机号是否匹配
+        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUserNo, userNo)
+                .eq(SysUser::getIsDeleted, 0));
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+        if (!phone.equals(user.getPhone())) {
+            return Result.error("手机号与账号不匹配");
+        }
+
+        // 发送验证码
+        captchaService.sendSmsCode(phone);
+        return Result.success();
+    }
+
+    @PostMapping("/forgot-password/reset")
+    @ApiOperation("忘记密码-重置密码")
+    public Result<Void> resetPassword(@RequestParam String userNo,
+                                       @RequestParam String phone,
+                                       @RequestParam String code,
+                                       @RequestParam String newPassword) {
+        // 验证账号和手机号是否匹配
+        SysUser user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUserNo, userNo)
+                .eq(SysUser::getIsDeleted, 0));
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+        if (!phone.equals(user.getPhone())) {
+            return Result.error("手机号与账号不匹配");
+        }
+
+        // 验证短信验证码
+        if (!captchaService.validateSmsCode(phone, code)) {
+            return Result.error("验证码错误或已过期");
+        }
+
+        // 重置密码
+        org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
+            new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+        user.setPassword(encoder.encode(newPassword));
+        user.setUpdateTime(java.time.LocalDateTime.now());
+        sysUserMapper.updateById(user);
+
+        return Result.success();
+    }
 }

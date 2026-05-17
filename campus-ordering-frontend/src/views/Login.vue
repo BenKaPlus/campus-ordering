@@ -24,7 +24,12 @@
             <span>还没有账号？</span>
             <router-link to="/register/student" class="register-link">学生注册</router-link>
             <span style="margin: 0 10px; color: #ddd;">|</span>
-            <router-link to="/register/merchant" class="register-link">商家注册</router-link>
+            <router-link to="/register/merchant" class="register-link">商家入驻</router-link>
+          </div>
+        </el-form-item>
+        <el-form-item>
+          <div class="forgot-password">
+            <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
           </div>
         </el-form-item>
       </el-form>
@@ -151,6 +156,19 @@ export default {
   margin: 0 5px;
 }
 .register-link:hover {
+  text-decoration: underline;
+}
+.forgot-password {
+  text-align: center;
+  width: 100%;
+}
+.forgot-link {
+  color: #909399;
+  text-decoration: none;
+  font-size: 14px;
+}
+.forgot-link:hover {
+  color: #409EFF;
   text-decoration: underline;
 }
 </style>
