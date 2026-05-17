@@ -95,6 +95,7 @@ public class MerchantApplyServiceImpl implements MerchantApplyService {
                 ShopInfo shop = new ShopInfo();
                 shop.setMerchantUserId(user.getUserId());
                 shop.setShopName(apply.getShopName());
+                shop.setShopLogo(""); // 默认空字符串
                 shop.setShopDesc(apply.getShopDescription());
                 shop.setShopCategoryId(1L); // 默认分类 ID
                 shop.setBusinessLicense(""); // 默认空字符串
